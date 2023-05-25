@@ -1,0 +1,23 @@
+{
+    "name": "eru123/holyphp",
+    "description": "A holy PHP library",
+    "require": {},
+    "autoload": {
+        "psr-4": {
+            "app\\": "app/",
+            "eru123\\": "eru123/"
+        },
+        "files": [
+            "eru123/holyf.php"
+        ]
+    },
+    "scripts": {
+        "post-install-cmd": [
+            "composer dump-autoload --optimize"
+        ],
+        "post-update-cmd": [
+            "composer dump-autoload --optimize"
+        ]
+    },
+    "license": "Apache-2.0"
+}
