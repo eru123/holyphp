@@ -1,5 +1,5 @@
 # holyphp
-Created by the holy saints to overcome trials, hardship, and sorrow cause by the darkest bugs.
+Created by the holy saints to overcome trials, hardship, and sorrow, saving you to the darkest bugs.
 # Features
  - Heavenly Side Rendering
  - Holy Hydration
