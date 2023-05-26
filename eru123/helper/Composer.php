@@ -47,11 +47,10 @@ class Composer
             static::$classmap = [];
             $classmaps = static::get_autoload()->getClassMap();
             foreach ($classmaps as $class => $file) {
-                if (!file_exists($file)) {
-                    continue;
+                $classfile = realpath($file);
+                if ($classfile !== false) {
+                    static::$classmap[$class] = $classfile;
                 }
-
-                static::$classmap[$class] = realpath($file);
             }
         }
 
