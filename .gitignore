@@ -5,3 +5,5 @@ composer.phar
 # Test files.
 /app/
 index.php
+*.env
+.env
