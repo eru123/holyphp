@@ -77,3 +77,13 @@ function cookie_set(string $key, $value)
 {
     return ArrayUtil::set($_COOKIE, $key, $value);
 }
+
+function globals(string $key = null, $default = null)
+{
+    return ArrayUtil::get($GLOBALS, $key, $default);
+}
+
+function globals_set(string $key, $value)
+{
+    return ArrayUtil::set($GLOBALS, $key, $value);
+}
