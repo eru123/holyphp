@@ -29,10 +29,8 @@ class Composer
     public static function get_autoload(): ClassLoader
     {
         if (static::$autoload === null && static::$composer_path === null) {
-            throw new Exception("Composer path is not set, please set a composer path or autoload first");
-        }
-
-        if (static::$autoload === null) {
+            static::init();
+        } else if (static::$autoload === null) {
             static::$autoload = require_once static::$composer_path;
         }
 
@@ -60,7 +58,8 @@ class Composer
         return static::$classmap;
     }
 
-    public static function init() {
-        
+    public static function init(): void
+    {
+        static::$autoload = new ClassLoader();
     }
 }
