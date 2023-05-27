@@ -14,6 +14,24 @@ class ArrayUtil
             return $array[$key];
         }
 
+        if (preg_replace_callback('/\{([^\}]+)\}/', function ($matches) use (&$array) {
+            $key = $matches[1];
+            $value = self::get($array, $key);
+            if (is_array($value)) {
+                $value = self::get($value, $key);
+            }
+            return $value;
+        }, $key) !== $key) {
+            $key = preg_replace_callback('/\{([^\}]+)\}/', function ($matches) use (&$array) {
+                $key = $matches[1];
+                $value = self::get($array, $key);
+                if (is_array($value)) {
+                    $value = self::get($value, $key);
+                }
+                return $value;
+            }, $key);
+        }
+
         foreach (explode('.', $key) as $segment) {
             if (!is_array($array) || !array_key_exists($segment, $array)) {
                 return $default;
@@ -28,6 +46,24 @@ class ArrayUtil
     {
         if (is_null($key) || empty($key)) {
             return $array = $value;
+        }
+
+        if (preg_replace_callback('/\{([^\}]+)\}/', function ($matches) use (&$array) {
+            $key = $matches[1];
+            $value = self::get($array, $key);
+            if (is_array($value)) {
+                $value = self::get($value, $key);
+            }
+            return $value;
+        }, $key) !== $key) {
+            $key = preg_replace_callback('/\{([^\}]+)\}/', function ($matches) use (&$array) {
+                $key = $matches[1];
+                $value = self::get($array, $key);
+                if (is_array($value)) {
+                    $value = self::get($value, $key);
+                }
+                return $value;
+            }, $key);
         }
 
         $keys = explode('.', $key);
