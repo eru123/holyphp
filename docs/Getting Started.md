@@ -1,12 +1,12 @@
 # Getting Started
 
-### Installation
+# Installation
 
 ```bash
 composer require eru123/holyphp
 ```
 
-### Autoloading Composer Dependencies
+# Autoloading Composer Dependencies
 
 On your index file, assign the value from composer autoload to a variable.
 
