@@ -46,4 +46,24 @@ class ArrayUtil
 
         return $array;
     }
+
+    public static function has(array $array, string $key)
+    {
+        if (empty($array) || is_null($key) || empty($key)) {
+            return false;
+        }
+
+        if (array_key_exists($key, $array)) {
+            return true;
+        }
+
+        foreach (explode('.', $key) as $segment) {
+            if (!is_array($array) || !array_key_exists($segment, $array)) {
+                return false;
+            }
+            $array = $array[$segment];
+        }
+
+        return true;
+    }
 }
