@@ -2,6 +2,9 @@
 
 namespace eru123\helper;
 
+use Composer\Autoload\ClassLoader;
+use Exception;
+
 class Composer
 {
     protected static $autoload = null;
@@ -9,24 +12,24 @@ class Composer
     protected static $classmap = null;
     protected static $config_classes = null;
 
-    public static function set_composer_path(string $path)
+    public static function set_composer_path(string $path): void
     {
         if (!file_exists($path)) {
-            throw new \Exception("Composer path does not exist: $path");
+            throw new Exception("Composer path does not exist: $path");
         }
 
         static::$composer_path = realpath($path);
     }
 
-    public static function get_composer_path()
+    public static function get_composer_path(): string
     {
         return static::$composer_path;
     }
 
-    public static function get_autoload()
+    public static function get_autoload(): ClassLoader
     {
         if (static::$autoload === null && static::$composer_path === null) {
-            throw new \Exception("Composer path is not set, please set a composer path or autoload first");
+            throw new Exception("Composer path is not set, please set a composer path or autoload first");
         }
 
         if (static::$autoload === null) {
@@ -36,12 +39,12 @@ class Composer
         return static::$autoload;
     }
 
-    public static function set_autoload(object $autoload)
+    public static function set_autoload(ClassLoader $autoload): void
     {
         static::$autoload = $autoload;
     }
 
-    public static function get_classmap()
+    public static function get_classmap(): array
     {
         if (static::$classmap === null) {
             static::$classmap = [];
@@ -55,5 +58,9 @@ class Composer
         }
 
         return static::$classmap;
+    }
+
+    public static function init() {
+        
     }
 }
