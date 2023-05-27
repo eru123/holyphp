@@ -2,10 +2,17 @@
 
 use eru123\config\BaseConfig;
 use eru123\helper\ArrayUtil;
+use eru123\helper\Composer;
+use Composer\Autoload\ClassLoader;
+
+function set_autoload(ClassLoader $autoload): void
+{
+    Composer::set_autoload($autoload);
+}
 
 function config(string $key, $default = null)
 {
-    return BaseConfig::get($key, $default);
+    return env($key, BaseConfig::get($key, $default));
 }
 
 function config_set(string $key, $value)
@@ -78,12 +85,12 @@ function cookie_set(string $key, $value)
     return ArrayUtil::set($_COOKIE, $key, $value);
 }
 
+function files(string $key = null, $default = null)
+{
+    return ArrayUtil::get($_FILES, $key, $default);
+}
+
 function globals(string $key = null, $default = null)
 {
     return ArrayUtil::get($GLOBALS, $key, $default);
-}
-
-function globals_set(string $key, $value)
-{
-    return ArrayUtil::set($GLOBALS, $key, $value);
 }
