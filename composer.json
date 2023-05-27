@@ -4,7 +4,6 @@
     "require": {},
     "autoload": {
         "psr-4": {
-            "app\\": "app/",
             "eru123\\": "eru123/"
         },
         "files": [
