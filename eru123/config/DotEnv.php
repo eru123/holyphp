@@ -6,56 +6,69 @@ use Exception;
 
 class DotEnv
 {
-    public static function load(string $path): void
+    public static function load(string $path, bool $strict = false): void
     {
         $path = realpath($path);
 
-        if (!$path) {
-            throw new Exception('File not found');
+        if ($path !== false && is_dir($path)) {
+            $path = rtrim($path, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR . '.env';
+            $path = realpath($path);
         }
 
-        $lines = file($path, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
+        if ($path === false) {
+            !$strict || throw new Exception("Environment file not found");
+            return;
+        }
+
+        try {
+            $lines = file($path, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
+        } catch (Exception $e) {
+            !$strict || throw new Exception('File not readable: ' . $e->getMessage());
+            return;
+        }
+
         foreach ($lines as $line) {
-            if (strpos(trim($line), '#') === 0) {
-                continue;
+            try {
+                if (strpos(trim($line), '#') === 0) {
+                    continue;
+                }
+
+                env_set(...static::parse($line, $strict));
+            } catch (Exception $e) {
+                !$strict || throw new Exception('Error parsing .env file: ' . $e->getMessage());
+                return;
             }
-
-            list($name, $value) = explode('=', $line, 2);
-
-            if (strpos($value, '#') !== false) {
-                $value = substr($value, 0, strpos($value, '#'));
-            }
-
-            $name = trim($name);
-            $value = trim($value);
-
-            if (strpos($value, "'") === 0 && strrpos($value, "'") === strlen($value) - 1) {
-                $value = substr($value, 1, -1);
-            } else if (strpos($value, '"') === 0 && strrpos($value, '"') === strlen($value) - 1) {
-                $value = substr($value, 1, -1);
-                $value = str_replace('\n', "\n", $value);
-                $value = str_replace('\r', "\r", $value);
-                $value = str_replace('\t', "\t", $value);
-                $value = str_replace('\v', "\v", $value);
-                $value = str_replace('\e', "\e", $value);
-                $value = str_replace('\f', "\f", $value);
-                $value = str_replace('\$', "\$", $value);
-                $value = str_replace('\0', "\0", $value);
-            }
-
-            if ($value === 'true') {
-                $value = true;
-            } else if ($value === 'false') {
-                $value = false;
-            } else if ($value === 'null') {
-                $value = null;
-            } else if (is_numeric($value)) {
-                $value = $value + 0;
-            } else if (empty($value)) {
-                continue;
-            }
-
-            env_set($name, $value);
         }
+    }
+
+    public static function parse(string $line, bool $strict = false): array
+    {
+        list($name, $value) = explode('=', $line, 2);
+        $name = trim($name);
+        $value = trim($value);
+
+        if ($strict && preg_match('/[^a-z0-9_.]/i', $name)) {
+            throw new Exception("Invalid environment variable name: {$name}");
+        }
+
+        if (preg_match('/^(true|false|null|\d+|\d+.\d+)$/i', $value)) {
+            return [$name, json_decode(strtolower($value))];
+        }
+
+        $value = preg_replace_callback('/\${([a-z0-9_.]+)}/i', function ($matches) use ($strict) {
+            if (is_null(env($matches[1])) && $strict) {
+                throw new Exception("Environment variable [{$matches[1]}] not found.");
+            }
+
+            return env($matches[1], '');
+        }, $value);
+
+        if (preg_match('/^"(.+)"$/', $value)) {
+            $value = preg_replace('/^"(.+)"$/', '$1', $value);
+        } elseif (preg_match("/^'(.+)'$/", $value)) {
+            $value = preg_replace("/^'(.+)'$/", '$1', $value);
+        }
+
+        return [$name, $value];
     }
 }
