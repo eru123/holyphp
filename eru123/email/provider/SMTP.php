@@ -90,7 +90,232 @@ class SMTP implements ProviderInterface
         return $socket;
     }
 
-    public function send(array $data): bool
+    public function from(string $name, string $email): static
+    {
+        $this->config['from_name'] = $name;
+        $this->config['from_email'] = $email;
+        return $this;
+    }
+
+    public function fromName(string $name): static
+    {
+        $this->config['from_name'] = $name;
+        return $this;
+    }
+
+    public function fromEmail(string $email): static
+    {
+        $this->config['from_email'] = $email;
+        return $this;
+    }
+
+    public function replyTo(string $email): static
+    {
+        if (!isset($this->config['reply_to'])) {
+            $this->config['reply_to'] = [];
+        }
+
+        if (isset($this->config['reply_to']) && empty($this->config['reply_to'])) {
+            $this->config['reply_to'] = [];
+        }
+
+        $this->config['reply_to'][] = $email;
+        return $this;
+    }
+
+    public function to(string $email): static
+    {
+        if (!isset($this->config['to'])) {
+            $this->config['to'] = [];
+        }
+
+        if (isset($this->config['to']) && empty($this->config['to'])) {
+            $this->config['to'] = [];
+        }
+
+        $this->config['to'][] = $email;
+        return $this;
+    }
+
+    public function cc(string $email): static
+    {
+        if (!isset($this->config['cc'])) {
+            $this->config['cc'] = [];
+        }
+
+        if (isset($this->config['cc']) && empty($this->config['cc'])) {
+            $this->config['cc'] = [];
+        }
+
+        $this->config['cc'][] = $email;
+        return $this;
+    }
+
+    public function bcc(string $email): static
+    {
+        if (!isset($this->config['bcc'])) {
+            $this->config['bcc'] = [];
+        }
+
+        if (isset($this->config['bcc']) && empty($this->config['bcc'])) {
+            $this->config['bcc'] = [];
+        }
+
+        $this->config['bcc'][] = $email;
+        return $this;
+    }
+
+    public function addTo(string $email): static
+    {
+        return $this->to($email);
+    }
+
+    public function addCc(string $email): static
+    {
+        return $this->cc($email);
+    }
+
+    public function addBcc(string $email): static
+    {
+        return $this->bcc($email);
+    }
+
+    public function subject(string $subject): static
+    {
+        $this->config['subject'] = $subject;
+        return $this;
+    }
+
+    public function body(string $body): static
+    {
+        $this->config['body'] = $body;
+        return $this;
+    }
+
+    public function auth(string $username, string $password): static
+    {
+        $this->config['username'] = $username;
+        $this->config['password'] = $password;
+        $this->config['auth'] = true;
+        return $this;
+    }
+
+    public function useAuth(bool $auth = true): static
+    {
+        $this->config['auth'] = $auth;
+        return $this;
+    }
+
+    public function useSSL(array $context = []): static
+    {
+        $this->config['ssl'] = $context;
+        $this->config['secure'] = 'ssl';
+        return $this;
+    }
+
+    public function useTLS(): static
+    {
+        $this->config['secure'] = 'tls';
+        return $this;
+    }
+
+    public function useUnsecure(): static
+    {
+        $this->config['secure'] = false;
+        return $this;
+    }
+
+    public function enableDebug(): static
+    {
+        $this->config['debug'] = true;
+        return $this;
+    }
+
+    public function disableDebug(): static
+    {
+        $this->config['debug'] = false;
+        return $this;
+    }
+
+    public function useDebug(bool $debug = true): static
+    {
+        $this->config['debug'] = $debug;
+        return $this;
+    }
+
+    public function timeout(int $seconds): static
+    {
+        $this->config['timeout'] = $seconds;
+        return $this;
+    }
+
+    public function useTimeout(int $seconds): static
+    {
+        $this->config['timeout'] = $seconds;
+        return $this;
+    }
+
+    public function usePort(int $port): static
+    {
+        $this->config['port'] = $port;
+        return $this;
+    }
+
+    public function port(int $port): static
+    {
+        $this->config['port'] = $port;
+        return $this;
+    }
+
+    public function useHost(string $host): static
+    {
+        $this->config['host'] = $host;
+        return $this;
+    }
+
+    public function host(string $host): static
+    {
+        $this->config['host'] = $host;
+        return $this;
+    }
+
+    public function useUsername(string $username): static
+    {
+        $this->config['username'] = $username;
+        return $this;
+    }
+
+    public function username(string $username): static
+    {
+        $this->config['username'] = $username;
+        return $this;
+    }
+
+    public function usePassword(string $password): static
+    {
+        $this->config['password'] = $password;
+        return $this;
+    }
+
+    public function password(string $password): static
+    {
+        $this->config['password'] = $password;
+        return $this;
+    }
+
+    public function useTime(int $time): static
+    {
+        $this->config['time'] = $time;
+        return $this;
+    }
+
+    public function time(int $time): static
+    {
+        $this->config['time'] = $time;
+        return $this;
+    }
+
+    public function send(array $data = []): bool
     {
         try {
             $data = array_merge([
@@ -103,7 +328,30 @@ class SMTP implements ProviderInterface
                 'subject' => '',
                 'body' => '',
                 'attachments' => [],
-            ], $data);
+            ], $this->config, $data);
+
+            if (!empty($data['to']) && is_string($data['to'])) {
+                $data['to'] = count(explode(',', $data['to'])) > 1 ? explode(',', $data['to']) : $data['to'];
+            } else if (empty($data['to'])) {
+                $data['to'] = [];
+            }
+
+            if (!empty($data['cc']) && is_string($data['cc'])) {
+                $data['cc'][] = count(explode(',', $data['cc'])) > 1 ? explode(',', $data['cc']) : $data['cc'];
+            } else if (empty($data['cc'])) {
+                $data['cc'] = [];
+            }
+
+            if (!empty($data['bcc']) && is_string($data['bcc'])) {
+                $data['bcc'][] = count(explode(',', $data['bcc'])) > 1 ? explode(',', $data['bcc']) : $data['bcc'];
+            } else if (empty($data['bcc'])) {
+                $data['bcc'] = [];
+            }
+
+            $recipients = array_merge($data['to'], $data['cc'], $data['bcc']);
+            if (empty($recipients)) {
+                throw new Exception('No recipients');
+            }
 
             $socket = $this->connect([], $this->config['debug']);
 
@@ -142,36 +390,36 @@ class SMTP implements ProviderInterface
             $this->write($socket, 'MAIL FROM: <' . $data['from_email'] . '>');
             $this->debug('RECV ' . $this->read($socket));
 
-            foreach ($data['to'] as $to) {
-                $this->write($socket, 'RCPT TO: <' . $to . '>');
-                $this->debug('RECV ' . $this->read($socket));
-            }
-
-            foreach ($data['cc'] as $cc) {
-                $this->write($socket, 'RCPT TO: <' . $cc . '>');
-                $this->debug('RECV ' . $this->read($socket));
-            }
-
-            foreach ($data['bcc'] as $bcc) {
-                $this->write($socket, 'RCPT TO: <' . $bcc . '>');
+            foreach ($recipients as $recipient) {
+                $this->write($socket, 'RCPT TO: <' . $recipient . '>');
                 $this->debug('RECV ' . $this->read($socket));
             }
 
             $this->write($socket, 'DATA');
             $this->debug('RECV ' . $this->read($socket));
 
-            $this->write($socket, 'From: ' . $data['from_name'] . ' <' . $data['from_email'] . '>');
-            $this->write($socket, 'To: ' . implode(', ', $data['to']));
+            if (empty($data['from_email']) && !empty($data['username'])) {
+                $data['from_email'] = $data['username'];
+            }
 
-            if ($data['reply_to']) {
-                $this->write($socket, 'Reply-To: ' . (is_array($data['reply_to']) ? implode(', ', $data['reply_to']) : $data['reply_to']));
+            if (empty($data['from_name'])) {
+                $data['from_name'] = $data['from_email'];
+            }
+
+            if (!empty($data['from_email'])) {
+                $this->write($socket, 'From: ' . $data['from_name'] . ' <' . $data['from_email'] . '>');
+            }
+
+            if (!empty($data['to'])) {
+                $this->write($socket, 'To: ' . implode(', ', $data['to']));
+            }
+
+            if (!empty($data['reply_to'])) {
+                $this->write($socket, 'Reply-To: ' . $data['reply_to']);
             }
 
             if (!empty($data['cc'])) {
                 $this->write($socket, 'Cc: ' . implode(', ', $data['cc']));
-            }
-            if (!empty($data['bcc'])) {
-                $this->write($socket, 'Bcc: ' . implode(', ', $data['bcc']));
             }
 
             $hash = md5((string) $this->config['time']);
