@@ -2,7 +2,7 @@
 
 namespace eru123\email\provider;
 
-class Gmail extends SMTP implements ProviderInterface
+class GMail extends SMTP implements ProviderInterface
 {
     public function __construct(array $config = [])
     {
