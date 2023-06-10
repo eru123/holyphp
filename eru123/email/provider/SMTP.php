@@ -9,8 +9,9 @@ use Exception;
 class SMTP implements ProviderInterface
 {
     private $config;
+    private $last_transaction_id;
 
-    public function __construct(array $config)
+    public function __construct(array $config = [])
     {
         $this->buildConfig($config);
         if ($this->config['secure'] && !in_array($this->config['secure'], ['ssl', 'tls'])) {
@@ -227,7 +228,7 @@ class SMTP implements ProviderInterface
 
     public function useSSL(array $context = []): static
     {
-        $this->config['ssl'] = $context;
+        $this->config['ssl'] = empty($context) ? $this->config['ssl'] : $context;
         $this->config['secure'] = 'ssl';
         return $this;
     }
@@ -241,6 +242,12 @@ class SMTP implements ProviderInterface
     public function useUnsecure(): static
     {
         $this->config['secure'] = false;
+        return $this;
+    }
+
+    public function secure(string $secure): static
+    {
+        $this->config['secure'] = $secure;
         return $this;
     }
 
@@ -468,6 +475,7 @@ class SMTP implements ProviderInterface
             $this->write($socket, '.');
 
             $datr = $this->read($socket);
+            $this->setLastTransactionId($datr);
             $this->debug('RECV ' . $datr);
 
             $this->write($socket, 'QUIT');
@@ -500,6 +508,39 @@ class SMTP implements ProviderInterface
             }
         }
         return $data;
+    }
+
+    private function setLastTransactionId(string $response): void
+    {
+        $smtp_transaction_id_patterns = [
+            'exim' => '/[\d]{3} OK id=(.*)/',
+            'sendmail' => '/[\d]{3} 2.0.0 (.*) Message/',
+            'postfix' => '/[\d]{3} 2.0.0 Ok: queued as (.*)/',
+            'Microsoft_ESMTP' => '/[0-9]{3} 2.[\d].0 (.*)@(?:.*) Queued mail for delivery/',
+            'Amazon_SES' => '/[\d]{3} Ok (.*)/',
+            'SendGrid' => '/[\d]{3} Ok: queued as (.*)/',
+            'CampaignMonitor' => '/[\d]{3} 2.0.0 OK:([a-zA-Z\d]{48})/',
+            'Haraka' => '/[\d]{3} Message Queued \((.*)\)/',
+            'ZoneMTA' => '/[\d]{3} Message queued as (.*)/',
+            'Mailjet' => '/[\d]{3} OK queued as (.*)/',
+            'Gmail' => '/[\d]{3} 2.0.0 (.*) - gsmtp/',
+        ];
+
+        foreach ($smtp_transaction_id_patterns as $key => $pattern) {
+            if (preg_match($pattern, $response, $matches)) {
+                $this->last_transaction_id = $matches[1];
+                break;
+            }
+        }
+
+        if (empty($this->last_transaction_id)) {
+            $this->last_transaction_id = $response;
+        }
+    }
+
+    public function id(): ?string
+    {
+        return $this->last_transaction_id;
     }
 
     public function __destruct()
