@@ -31,6 +31,7 @@ class SMTP implements ProviderInterface
             'debug' => false,
             'ssl' => false,
             'time' => time(),
+            'eol' => "\r\n",
         ], $this->config ?? [], $config);
 
         if ($cfg['secure'] == 'ssl') {
@@ -62,6 +63,24 @@ class SMTP implements ProviderInterface
         } else {
             echo '<pre>', $message, '</pre>';
         }
+    }
+
+    public function eol(string $eol): static
+    {
+        $this->config['eol'] = $eol;
+        return $this;
+    }
+
+    public function break(string $break): static
+    {
+        $this->config['eol'] = $break;
+        return $this;
+    }
+
+    public function br(string $break): static
+    {
+        $this->config['eol'] = $break;
+        return $this;
     }
 
     public function connect(array $config = [], bool $debug = false)
@@ -465,7 +484,7 @@ class SMTP implements ProviderInterface
     private function write($socket, $data): void
     {
         $this->debug("SEND " . substr($data, 0, 64) . (strlen($data) > 64 ? '...' : ''));
-        fwrite($socket, $data . "\r\n");
+        fwrite($socket, $data . (@$this->config['eol'] ?? "\r\n"));
     }
 
     private function read($socket): string
