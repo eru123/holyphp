@@ -6,7 +6,7 @@ namespace eru123\email\provider;
 
 use Exception;
 
-class SMTP implements ProviderInterface
+class SMTP implements OutboundInterface
 {
     private $config;
     private $last_transaction_id;

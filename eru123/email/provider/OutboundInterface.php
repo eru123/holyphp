@@ -2,7 +2,7 @@
 
 namespace eru123\email\provider;
 
-interface ProviderInterface
+interface OutboundInterface
 {
     public function __construct(array $config);
     public function send(array $data): bool;
