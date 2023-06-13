@@ -22,6 +22,24 @@ class Router
         $this->parent = $parent;
     }
 
+    public function fallback(callable $callback): static
+    {
+        $this->fallback = $callback;
+        return $this;
+    }
+
+    public function error(callable $callback): static
+    {
+        $this->error = $callback;
+        return $this;
+    }
+
+    public function response(callable $callback): static
+    {
+        $this->response = $callback;
+        return $this;
+    }
+
     public function request($method, $url, ...$callbacks): static
     {
         $this->routes[] = [
@@ -47,7 +65,7 @@ class Router
         return $this->request('POST', $url, ...$callbacks);
     }
 
-    public function bootstrap(array|callable|\Closure $callbacks): static
+    public function bootstrap(array|callable $callbacks): static
     {
         if (is_array($callbacks)) {
             $this->bootstraps = array_merge($this->bootstraps, $callbacks);
@@ -88,8 +106,51 @@ class Router
         return $this->request('ANY', $url, ...$callbacks);
     }
 
-    public function static($url, ...$callbacks): static
+    public function static($url, string|array $dir, string|array $index, ...$callbacks): static
     {
+        if (is_string($dir)) {
+            $dir = [$dir];
+        }
+
+        if (is_string($index)) {
+            $index = [$index];
+        }
+
+        $callbacks[] = function (Context $context) use ($dir, $index) {
+            $fp = ltrim($context->request->path, '/');
+
+            foreach ($dir as $i => $d) {
+                $d = realpath($d);
+                $f = null;
+
+                if (!$d) {
+                    continue;
+                }
+
+                if (!empty($fp)) {
+                    $f = realpath($d . '/' . $fp);
+                    if (!$f) {
+                        continue;
+                    }
+                }
+
+                if (!$f) {
+                    foreach ($index as $j => $f) {
+                        $f = realpath($d . '/' . $f);
+                        if ($f) {
+                            break;
+                        }
+                    }
+                }
+
+                if (!$f || !file_exists($f)) {
+                    continue;
+                }
+
+                // TODO: stream file
+            }
+        };
+
         return $this->request('STATIC', $url, ...$callbacks);
     }
 
