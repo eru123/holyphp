@@ -5,6 +5,7 @@ namespace eru123\router;
 use Exception;
 use Error;
 use Throwable;
+use eru123\fs\File;
 
 class Router
 {
@@ -106,7 +107,7 @@ class Router
         return $this->request('ANY', $url, ...$callbacks);
     }
 
-    public function static($url, string|array $dir, string|array $index, ...$callbacks): static
+    public function static($url, string|array $dir, string|array $index = [], ...$callbacks): static
     {
         if (is_string($dir)) {
             $dir = [$dir];
@@ -117,7 +118,11 @@ class Router
         }
 
         $callbacks[] = function (Context $context) use ($dir, $index) {
-            $fp = ltrim($context->request->path, '/');
+            if (!isset($context->route['file']) || empty($context->route['file'])) {
+                return null;
+            }
+
+            $fp = ltrim(urldecode($context->route['file']), '/');
 
             foreach ($dir as $i => $d) {
                 $d = realpath($d);
@@ -147,7 +152,7 @@ class Router
                     continue;
                 }
 
-                // TODO: stream file
+                return (new File($f))->stream();
             }
         };
 
@@ -241,7 +246,8 @@ class Router
             $callback_response = null;
             foreach ($map as $route) {
                 if ($route['match'] || $route['matchdir']) {
-                    $context = new Context($route);
+                    $context = new Context;
+                    $context->route = $route;
                     $context->routes = $map;
                     $callbacks = $route['callbacks'];
                     if ((($route['method'] == 'ANY' || $route['method'] == Helper::method()) && $route['match']) || ($route['method'] == 'STATIC' && $route['matchdir'])) {
@@ -249,7 +255,7 @@ class Router
                         while (!empty($callbacks) && is_null($callback_response)) {
                             $callback = array_shift($callbacks);
                             if (is_callable($callback)) {
-                                $callback_response = call_user_func_array($callback, [$context]);
+                                $callback_response = call_user_func_array($callback, [&$context]);
                             }
                         }
 
@@ -261,14 +267,14 @@ class Router
             }
 
             if (is_null($callback_response)) {
-                $response_handler($fallback_handler());
+                $response_handler($fallback_handler($context));
             }
         } catch (Exception $e) {
-            $response_handler($error_handler($e));
+            $response_handler($error_handler($e, $context));
         } catch (Error $e) {
-            $response_handler($error_handler($e));
+            $response_handler($error_handler($e, $context));
         } catch (Throwable $e) {
-            $response_handler($error_handler($e));
+            $response_handler($error_handler($e, $context));
         }
     }
 }
