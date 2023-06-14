@@ -1058,9 +1058,12 @@ class File
         $size = $this->size;
         $offset = 0;
 
-        header('Content-Type: ' . $this->mime);
-        header('Content-Length: ' . $size);
-        header('Accept-Ranges: bytes');
+        if (!headers_sent() && ob_get_level() === 0) {
+            header('Content-Type: ' . $this->mime);
+            header('Content-Length: ' . $size);
+            header('Accept-Ranges: bytes');
+        }
+
         while ($offset < $size && !feof($fp) && !connection_aborted()) {
             $buffer = fread($fp, $bytes);
             echo $buffer;
