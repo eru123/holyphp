@@ -148,7 +148,7 @@ class Router
                     }
                 }
 
-                if (!$f || !file_exists($f)) {
+                if (!$f || !file_exists($f) || strpos($f, $d) !== 0) {
                     continue;
                 }
 
