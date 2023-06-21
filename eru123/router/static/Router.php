@@ -27,6 +27,7 @@ use eru123\router\Router as DynamicRouter;
  * @method static DynamicRouter bootstrap(array|callable $callbacks) Set the bootstrap callback
  * @method static array map(string $parent_base = '', array $parent_callbacks = []) Get the map of the router
  * @method static void run(?string $base = null) Run the router
+ * @method static void status_page(int $code, string $title, string $message) Response with a status page
  */
 class Router
 {

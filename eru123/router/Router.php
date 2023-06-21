@@ -328,7 +328,7 @@ class Router
      * @param string $message Page message
      * @return void
      */
-    public static function status_page(int $code, string $title, string $message)
+    public static function status_page(int $code, string $title, string $message): void
     {
         http_response_code($code);
         $title = htmlspecialchars($title);
