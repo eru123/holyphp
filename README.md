@@ -9,4 +9,4 @@ Created by the holy saints to overcome trials, hardship, and sorrow, saving you 
  - God's promise Freedom for File Structures
 
 # Holy Scriptures
- - Getting Started with [Holy Doctrines](https://eru123.github.io/holyphp)
+ - Getting Started with [Holy Doctrines](./docs/index.md)
