@@ -6,6 +6,9 @@ use Exception;
 
 class Context
 {
+    /**
+     * @var array The data of the context
+     */
     protected $__data__ = [];
 
     public function __construct(array $data = [])

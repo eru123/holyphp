@@ -5,6 +5,7 @@ namespace eru123\router;
 use Exception;
 use Error;
 use Throwable;
+use InvalidArgumentException;
 use eru123\fs\File;
 
 class Router
@@ -23,24 +24,46 @@ class Router
         $this->parent = $parent;
     }
 
+    /**
+     * Set a callback function to be called if no route is matched
+     * @param callable $callback
+     * @return Router
+     */
     public function fallback(callable $callback): static
     {
         $this->fallback = $callback;
         return $this;
     }
 
+    /**
+     * Set a callback function to be called if an error is thrown
+     * @param callable $callback
+     * @return Router
+     */
     public function error(callable $callback): static
     {
         $this->error = $callback;
         return $this;
     }
 
+    /**
+     * Set a callback function to be called if a response is returned
+     * @param callable $callback
+     * @return Router
+     */
     public function response(callable $callback): static
     {
         $this->response = $callback;
         return $this;
     }
 
+    /**
+     * Define a route
+     * @param string $method HTTP method (GET, POST, PUT, DELETE, PATCH, OPTIONS, HEAD, ANY, STATIC)
+     * @param string $url URL path to match
+     * @param callable [,...$callbacks] Callback functions to be called if the route is matched
+     * @return Router
+     */
     public function request($method, $url, ...$callbacks): static
     {
         $this->routes[] = [
@@ -51,21 +74,45 @@ class Router
         return $this;
     }
 
+    /**
+     * Alias of request()
+     * @param string $method HTTP method (GET, POST, PUT, DELETE, PATCH, OPTIONS, HEAD, ANY, STATIC)
+     * @param string $url URL path to match
+     * @param callable [,...$callbacks] Callback functions to be called if the route is matched
+     * @return Router
+     */
     public function route(...$args): static
     {
         return $this->request(...$args);
     }
 
+    /**
+     * Define a route with GET method
+     * @param string $url URL path to match
+     * @param callable [,...$callbacks] Callback functions to be called if the route is matched
+     * @return Router
+     */
     public function get($url, ...$callbacks): static
     {
         return $this->request('GET', $url, ...$callbacks);
     }
 
+    /**
+     * Define a route with POST method
+     * @param string $url URL path to match
+     * @param callable [,...$callbacks] Callback functions to be called if the route is matched
+     * @return Router
+     */
     public function post($url, ...$callbacks): static
     {
         return $this->request('POST', $url, ...$callbacks);
     }
 
+    /**
+     * Define a route bootstrapper function, it will be called before any route callbacks are called
+     * @param callable|array $callbacks
+     * @return Router
+     */
     public function bootstrap(array|callable $callbacks): static
     {
         if (is_array($callbacks)) {
@@ -77,36 +124,80 @@ class Router
         return $this;
     }
 
+    /**
+     * Define a route with PUT method
+     * @param string $url URL path to match
+     * @param callable [,...$callbacks] Callback functions to be called if the route is matched
+     * @return Router
+     */
     public function put($url, ...$callbacks): static
     {
         return $this->request('PUT', $url, ...$callbacks);
     }
 
+    /**
+     * Define a route with DELETE method
+     * @param string $url URL path to match
+     * @param callable [,...$callbacks] Callback functions to be called if the route is matched
+     * @return Router
+     */
     public function delete($url, ...$callbacks): static
     {
         return $this->request('DELETE', $url, ...$callbacks);
     }
 
+    /**
+     * Define a route with PATCH method
+     * @param string $url URL path to match
+     * @param callable [,...$callbacks] Callback functions to be called if the route is matched
+     * @return Router
+     */
     public function patch($url, ...$callbacks): static
     {
         return $this->request('PATCH', $url, ...$callbacks);
     }
 
+    /**
+     * Define a route with OPTIONS method
+     * @param string $url URL path to match
+     * @param callable [,...$callbacks] Callback functions to be called if the route is matched
+     * @return Router
+     */
     public function options($url, ...$callbacks): static
     {
         return $this->request('OPTIONS', $url, ...$callbacks);
     }
 
+    /**
+     * Define a route with HEAD method
+     * @param string $url URL path to match
+     * @param callable [,...$callbacks] Callback functions to be called if the route is matched
+     * @return Router
+     */
     public function head($url, ...$callbacks): static
     {
         return $this->request('HEAD', $url, ...$callbacks);
     }
 
+    /**
+     * Define a route with ANY method. The route will be matched with any HTTP method.
+     * @param string $url URL path to match
+     * @param callable [,...$callbacks] Callback functions to be called if the route is matched
+     * @return Router
+     */
     public function any($url, ...$callbacks): static
     {
         return $this->request('ANY', $url, ...$callbacks);
     }
 
+    /**
+     * Define a route with STATIC method. The route will be matched with any HTTP method.
+     * @param string $url URL path to match
+     * @param string|array $dir Directory or directories to serve static files from
+     * @param string|array $index Index file or files to serve if the directory is requested
+     * @param callable [,...$callbacks] Callback functions to be called if the route is matched
+     * @return Router
+     */
     public function static($url, string|array $dir, string|array $index = [], ...$callbacks): static
     {
         if (is_string($dir)) {
@@ -159,23 +250,47 @@ class Router
         return $this->request('STATIC', $url, ...$callbacks);
     }
 
+    /**
+     * Add a router group
+     * @param Router $router
+     * @return Router
+     */
     public function child(Router $router): static
     {
+        if ($router === $this) {
+            throw new InvalidArgumentException('Cannot add router to itself');
+        }
         $router->parent($this);
         $this->childs[] = $router;
         return $this;
     }
 
+    /**
+     * Get the parent router, or set the parent router
+     * @param Router|null $router The parent router to set, or null to get the parent router
+     * @return Router|null
+     */
     public function parent(?Router $router): ?Router
     {
         return is_null($router) ? $this->parent : $this->parent = $router;
     }
 
+    /**
+     * Get the base path, or set the base path
+     * @param string|null $base The base path to set, or null to get the base path
+     * @return string
+     */
     public function base(?string $base = null): string
     {
         return is_null($base) ? $this->base : $this->base = $base;
     }
 
+    /**
+     * Map the router to an array of routes including all child routers
+     * @param string $parent_base The base path of the parent router
+     * @param array $parent_callbacks The callbacks of the parent router (bootstrap callbacks)
+     * @return array
+     */
     public function map(string $parent_base = '', array $parent_callbacks = []): array
     {
         $map = [];
@@ -206,6 +321,13 @@ class Router
         }, $map);
     }
 
+    /**
+     * Default HTML Page for handling errors, exceptions and fallbacks
+     * @param int $code HTTP status code
+     * @param string $title Page title
+     * @param string $message Page message
+     * @return void
+     */
     public static function status_page(int $code, string $title, string $message)
     {
         http_response_code($code);
@@ -215,6 +337,11 @@ class Router
         exit;
     }
 
+    /**
+     * Run the router
+     * @param string|null $base The base path to set, or null to use the current base path
+     * @return void
+     */
     public function run(?string $base = null): void
     {
         if (!is_null($base)) {
