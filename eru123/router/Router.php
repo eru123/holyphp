@@ -369,6 +369,8 @@ class Router
             }
         };
 
+        $context = null;
+
         try {
             $callback_response = null;
             foreach ($map as $route) {
