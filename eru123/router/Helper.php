@@ -45,6 +45,9 @@ class Helper
      */
     public static function uri(): string
     {
+        if (!isset($_SERVER['REQUEST_URI'])) {
+            return '/';
+        }
         return static::sanitize($_SERVER['REQUEST_URI']);
     }
 
