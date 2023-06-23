@@ -60,9 +60,27 @@ class SMTP implements OutboundInterface
         }
 
         if (in_array(PHP_SAPI, ['cli', 'phpdbg'])) {
-            echo "[", date('Y-m-d H:i:s'), "] ", $message, PHP_EOL;
+            $use_color = substr($message, 0, 3) == '<< ' || substr($message, 0, 3) == '>> ';
+            $recv_color = "\033[36m";
+            $send_color = "\033[32m";
+
+            if ($use_color) {
+                if (substr($message, 0, 2) == '<<') {
+                    $message = $recv_color . $message . "\033[0m";
+                } elseif (substr($message, 0, 2) == '>>') {
+                    $message = $send_color . $message . "\033[0m";
+                }
+            }
+
+            echo $message;
+            if (!in_array(substr($message, -1), ["\r", "\n"])) {
+                echo PHP_EOL;
+            }
         } else {
-            echo '<pre>', $message, '</pre>';
+            echo str_replace(PHP_EOL, '<br>', $message);
+            if (!in_array(substr($message, -1), ["\r", "\n"])) {
+                echo '<br>';
+            }
         }
     }
 
@@ -87,12 +105,12 @@ class SMTP implements OutboundInterface
     public function connect(array $config = [], bool $debug = false)
     {
         $cfg = $this->buildConfig($config);
-        !$debug || $this->debug('Connecting to ' . $cfg['host'] . ':' . $cfg['port']);
+        !$debug || $this->debug('== Connecting to ' . $cfg['host'] . ':' . $cfg['port']);
 
         $socket = null;
 
         if ($cfg['ssl']) {
-            !$debug || $this->debug('Using SSL');
+            !$debug || $this->debug('== Using SSL');
             if (!extension_loaded('openssl')) {
                 throw new Exception('SSL extension not loaded');
             }
@@ -386,48 +404,48 @@ class SMTP implements OutboundInterface
 
             $socket = $this->connect([], $this->config['debug']);
 
-            $this->debug('Checking connection');
-            $this->debug('RECV ' . $this->read($socket));
+            $this->debug('== Checking connection');
+            $this->read($socket);
 
-            $this->debug('Connected, sending HELO');
+            $this->debug('== Connected, sending HELO');
             $this->write($socket, 'EHLO ' . $this->config['host']);
-            $this->debug('RECV ' . $this->read($socket));
+            $this->read($socket);
 
             if ($this->config['secure'] == 'tls') {
-                $this->debug('Starting TLS');
+                $this->debug('== Starting TLS');
                 $this->write($socket, 'STARTTLS');
-                $this->debug('RECV ' . $this->read($socket));
+                $this->read($socket);
 
                 if (!stream_socket_enable_crypto($socket, true, STREAM_CRYPTO_METHOD_TLS_CLIENT)) {
                     throw new Exception('Unable to start TLS');
                 }
 
-                $this->debug('Sending HELO after TLS');
+                $this->debug('== Sending HELO after TLS');
                 $this->write($socket, 'EHLO ' . $this->config['host']);
-                $this->debug('RECV ' . $this->read($socket));
+                $this->read($socket);
             }
 
             if ($this->config['auth']) {
                 $this->write($socket, 'AUTH LOGIN');
-                $this->debug('RECV ' . $this->read($socket));
+                $this->read($socket);
 
                 $this->write($socket, base64_encode($this->config['username']));
-                $this->debug('RECV ' . $this->read($socket));
+                $this->read($socket);
 
                 $this->write($socket, base64_encode($this->config['password']));
-                $this->debug('RECV ' . $this->read($socket));
+                $this->read($socket);
             }
 
             $this->write($socket, 'MAIL FROM: <' . $data['from_email'] . '>');
-            $this->debug('RECV ' . $this->read($socket));
+            $this->read($socket);
 
             foreach ($recipients as $recipient) {
                 $this->write($socket, 'RCPT TO: <' . $recipient . '>');
-                $this->debug('RECV ' . $this->read($socket));
+                $this->read($socket);
             }
 
             $this->write($socket, 'DATA');
-            $this->debug('RECV ' . $this->read($socket));
+            $this->read($socket);
 
             if (empty($data['from_email']) && !empty($data['username'])) {
                 $data['from_email'] = $data['username'];
@@ -481,10 +499,9 @@ class SMTP implements OutboundInterface
 
             $datr = $this->read($socket);
             $this->setLastTransactionId($datr);
-            $this->debug('RECV ' . $datr);
 
             $this->write($socket, 'QUIT');
-            $this->debug('RECV ' . $this->read($socket));
+            $this->read($socket);
 
             if (is_resource($socket)) {
                 fclose($socket);
@@ -500,7 +517,7 @@ class SMTP implements OutboundInterface
 
     private function write($socket, $data): void
     {
-        $this->debug("SEND " . substr($data, 0, 64) . (strlen($data) > 64 ? '...' : ''));
+        $this->debug(">> " . substr($data, 0, 64) . (strlen($data) > 64 ? '...' : ''));
         fwrite($socket, $data . (@$this->config['eol'] ?? "\r\n"));
     }
 
@@ -516,6 +533,7 @@ class SMTP implements OutboundInterface
                 break;
             }
         }
+        $this->debug('<< ' . str_replace(["\r", "\n"], ["\r<< ", "\n<< "], trim($data)));
         return $data;
     }
 
