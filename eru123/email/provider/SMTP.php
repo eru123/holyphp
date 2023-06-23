@@ -88,6 +88,9 @@ class SMTP implements OutboundInterface
     {
         $cfg = $this->buildConfig($config);
         !$debug || $this->debug('Connecting to ' . $cfg['host'] . ':' . $cfg['port']);
+
+        $socket = null;
+
         if ($cfg['ssl']) {
             !$debug || $this->debug('Using SSL');
             if (!extension_loaded('openssl')) {
@@ -343,6 +346,8 @@ class SMTP implements OutboundInterface
 
     public function send(array $data = []): bool
     {
+        $socket = null;
+
         try {
             $data = array_merge([
                 'from_email' => '',
@@ -481,10 +486,14 @@ class SMTP implements OutboundInterface
             $this->write($socket, 'QUIT');
             $this->debug('RECV ' . $this->read($socket));
 
-            fclose($socket);
+            if (is_resource($socket)) {
+                fclose($socket);
+            }
             return true;
         } catch (Exception $e) {
-            fclose($socket);
+            if (is_resource($socket)) {
+                fclose($socket);
+            }
             return false;
         }
     }
