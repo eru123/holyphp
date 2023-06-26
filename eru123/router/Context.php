@@ -4,6 +4,19 @@ namespace eru123\router;
 
 use Exception;
 
+/**
+ * Context
+ * 
+ * @var array $route The current route data
+ * @var array $routes The map of all routes
+ * @var string $method The current request method
+ * @var string $path The path definition of the current route
+ * @var array $callbacks The callbacks of the current route
+ * @var array $params The params of the current route
+ * @var string|null $file The file of the current route if it's a static route, it's null if no file request or requested a directory
+ * @var boolean $match If the current route is matched
+ * @var boolean $matchdir If the current route is matched a directory
+ */
 class Context
 {
     /**
