@@ -375,7 +375,7 @@ class Router
             $callback_response = null;
             foreach ($map as $route) {
                 if ($route['match'] || $route['matchdir']) {
-                    $context = new Context;
+                    $context = new Context($route);
                     $context->route = $route;
                     $context->routes = $map;
                     $callbacks = $route['callbacks'];
