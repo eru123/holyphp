@@ -1,36 +1,4 @@
-# Getting Started
-
-# Installation
-
-```bash
-composer require eru123/holyphp
-```
-
-# Autoloading Composer Dependencies
-
-On your index file, assign the value from composer autoload to a variable.
-
-```php
-$autoload = require_once __DIR__ . '/vendor/autoload.php';
-```
-
-Use the Composer helper to pass the autoload variable, this will be used to load the configurations, routes, and other files.
-
-```php
-eru123\helper\Composer::set_autoload($autoload);
-```
-
-Or if you are lazy like the creator himself to type all that namespacing, you can use the `set_autoload` function directly.
-
-```php
-set_autoload($autoload);
-```
-
-Or if you are still surprisingly lazy, you can just (go fuck and die, just kidding we're all holy ones here) require the autoloader and it will do it itself when it's **needed**.
-
-```php
-require_once __DIR__ . '/vendor/autoload.php';
-```
+[Back to Main Page](../README.md)
 
 # Loading Environment Variables
 ### From file
@@ -54,7 +22,7 @@ Enabling strict mode will do the following:
  - check if variable in the value is defined
  - throws an exception when parsing failed
 
-## Runtime Usage
+# Runtime Usage
 ### Set env value
 ```php
 $key = 'app.mode';
@@ -77,4 +45,12 @@ $mode = env('app.mode', $default); // development
 // Using variables
 $mode = env('app.modes.${app.mode}.name', $default); // Dev
 ```
+# Tips
+If you have environments for different stages, you can load first the default environment variables where the app env mode is defined and use it to load the environment variables for the current environment.
 
+```php
+use eru123\config\DotEnv;
+
+DotEnv::load(__DIR__ . '/.env');
+DotEnv::load(__DIR__ . '/' . env('APP_ENV') . '.env');
+```
