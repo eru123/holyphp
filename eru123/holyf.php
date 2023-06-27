@@ -94,3 +94,21 @@ function globals(string $key = null, $default = null)
 {
     return ArrayUtil::get($GLOBALS, $key, $default);
 }
+
+function redirect(string $url, array $postdata = null, bool $replace = true, int $code = 302)
+{
+    if (empty($postdata)) {
+        header('Location: ' . $url);
+    }
+
+    $qm = strpos($url, '?');
+    if ($qm !== false && $qm < strlen($url) - 1) {
+        $url .= '&';
+    } else if ($qm === false) {
+        $url .= '?';
+    }
+
+    $url .= http_build_query($postdata);
+    header('location: ' . $url, $replace, $code);
+    exit;
+}
