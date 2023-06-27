@@ -250,6 +250,66 @@ class Router
         return $this->request('STATIC', $url, ...$callbacks);
     }
 
+    public function proxy($url, ...$callbacks): static
+    {
+        $callbacks[] = function (Context $context) {
+            if ($context->route['method'] !== 'PROXY' || !isset($context->route['params']['file']) || empty($context->route['params']['file'])) {
+                return null;
+            }
+
+            $fp = urldecode($context->route['params']['file']);
+            if (!filter_var($fp, FILTER_VALIDATE_URL)) {
+                throw new InvalidArgumentException('Invalid proxy URL', 400);
+            }
+
+            $protocol = parse_url($fp, PHP_URL_SCHEME);
+            if (!in_array($protocol, ['http', 'https'])) {
+                throw new InvalidArgumentException('Invalid Protocol', 400);
+            }
+
+            $ch = curl_init($fp);
+            curl_setopt($ch, CURLOPT_HEADER, true);
+            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+            curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
+            curl_setopt($ch, CURLOPT_COOKIE, implode('; ', $_COOKIE));
+
+            $headers = [];
+            foreach (getallheaders() as $key => $value) {
+                if (in_array(strtolower($key), ['host', 'content-length', 'content-type'])) {
+                    continue;
+                }
+                $headers[] = $key . ': ' . $value;
+            }
+
+            // bypass p3p policy
+            $headers[] = 'P3P: CP="CAO PSA OUR"';
+
+            curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
+
+            if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+                curl_setopt($ch, CURLOPT_POST, true);
+                curl_setopt($ch, CURLOPT_POSTFIELDS, file_get_contents('php://input'));
+            }
+
+            $response = curl_exec($ch);
+            $header_size = curl_getinfo($ch, CURLINFO_HEADER_SIZE);
+            $header = substr($response, 0, $header_size);
+            $body = substr($response, $header_size);
+
+            $headers = explode("\r\n", $header);
+            foreach ($headers as $header) {
+                if (empty($header)) {
+                    continue;
+                }
+                header($header);
+            }
+
+            return $body;
+        };
+
+        return $this->request('PROXY', $url, ...$callbacks);
+    }
+
     /**
      * Add a router group
      * @param Router $router
@@ -313,10 +373,12 @@ class Router
         }
 
         return array_map(function ($route) {
-            $route['match'] = Helper::match($route['path']);
+            $fallback_match = Helper::match_fallback($route['path']);
+            $route['match'] = Helper::match($route['path']) || $fallback_match;
             $route['matchdir'] = Helper::matchdir($route['path']);
             $route['params'] = Helper::params($route['path']);
             $route['file'] = Helper::file($route['path']);
+            $route['params'] = array_merge($route['params'], Helper::fallback_params($route['path']));
             return $route;
         }, $map);
     }
@@ -379,7 +441,14 @@ class Router
                     $context->route = $route;
                     $context->routes = $map;
                     $callbacks = $route['callbacks'];
-                    if ((($route['method'] == 'ANY' || $route['method'] == Helper::method()) && $route['match']) || ($route['method'] == 'STATIC' && $route['matchdir'])) {
+
+                    $match_any = $route['method'] == 'ANY';
+                    $match_method = $route['method'] == Helper::method();
+                    $match_url = ($match_any || $match_method) && $route['match'];
+                    $match_dir = $route['method'] == 'STATIC' && $route['matchdir'];
+                    $match_proxy = $context->route['method'] == 'PROXY' && isset($context->route['params']['file']) && !empty($context->route['params']['file']);
+
+                    if ($match_url || $match_dir || $match_proxy) {
                         $callback_response = null;
                         while (!empty($callbacks) && is_null($callback_response)) {
                             $callback = array_shift($callbacks);
@@ -396,7 +465,7 @@ class Router
             }
 
             if (is_null($callback_response)) {
-                $response_handler($fallback_handler($context));
+                $response_handler($fallback_handler($context ?? new Context()));
             }
         } catch (Exception $e) {
             $response_handler($error_handler($e, $context));

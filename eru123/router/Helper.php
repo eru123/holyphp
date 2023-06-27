@@ -18,6 +18,19 @@ class Helper
     }
 
     /**
+     * Check if Router match the URI fallback
+     * @param string $path The Router Path to match on the URI
+     * @param string|null $uri The URI to match on the Router Path
+     * @return bool
+     */
+    public static function match_fallback(string $path, ?string $uri = null): bool
+    {
+        $uri = !empty($uri) ? static::sanitize($uri) : static::uri();
+        $rgx = static::fallback2rgx($path);
+        return preg_match($rgx, $uri);
+    }
+
+    /**
      * Get request method
      * @return string
      */
@@ -79,6 +92,24 @@ class Helper
     }
 
     /**
+     * Convert Router Fallback Path to Regular Expression
+     * @param string $path The Router Fallback Path to convert
+     * @return string The Regular Expression
+     */
+    public static function fallback2rgx(string $path): string
+    {
+        if (substr($path, -1) === '/') {
+            $path = substr($path, 0, -1);
+        }
+
+        $var = '/\$([a-zA-Z_]([a-zA-Z0-9_]+)?)/';
+        $rgx = preg_replace('/\//', "\\\/", $path);
+        $rgx = preg_replace('/\\\\\/$/', '', $rgx);
+        $rgx = preg_replace($var, '(?P<$1>[^\/\?]+)', $rgx);
+        return '/^' . $rgx . '\/'. '(?P<file>.*+)?$/';
+    }
+
+    /**
      * Get Router Path Parameters
      * @param string $path The Router Path to get the parameters
      * @param string|null $uri The URI to get the parameters
@@ -119,5 +150,21 @@ class Helper
         $rgx = static::file2rgx($path);
         preg_match($rgx, $uri, $matches);
         return isset($matches['file']) ? $matches['file'] : false;
+    }
+
+    /**
+     * Get Router Fallback params
+     * @param string $path The Router Fallback Path to get the parameters
+     * @param string|null $uri The URI to get the parameters
+     * @return array The parameters
+     */
+    public static function fallback_params(string $path, ?string $uri = null): array
+    {
+        $uri = !empty($uri) ? static::sanitize($uri) : static::uri();
+        $rgx = static::fallback2rgx($path);
+        preg_match($rgx, $uri, $matches);
+        return array_filter($matches, function ($k) {
+            return !is_numeric($k);
+        }, ARRAY_FILTER_USE_KEY);
     }
 }
