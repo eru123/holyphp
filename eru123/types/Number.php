@@ -17,17 +17,17 @@ namespace eru123\types;
  * @method static string div_single(string $number, string $number2, int $precision) Divide a number by a single digit number
  * @method static string comp(string $number, string $number2) Compare two numbers
  * 
- * @method bool isPrime() Check if a number is prime
- * @method string round(int $precision) Round a number
- * @method string match_length(string $number2) Match length of two numbers
- * @method string add(string $number2, int $precision) Add two numbers
- * @method string sub(string $number2, int $precision) Subtract two numbers
- * @method string mul(string $number2, int $precision) Multiply two numbers
- * @method string div(string $number2, int $precision) Divide two numbers
- * @method string mod(string $number2, int $precision) Modulus of two numbers
- * @method string pow(int $exp, int $precision) Power of a number
- * @method string div_single(string $number2, int $precision) Divide a number by a single digit number
- * @method string comp(string $number2) Compare two numbers
+ * @method bool isPrime() Check if the number is prime
+ * @method string round(int $precision) Round the number
+ * @method string match_length(string $number2) Match length of number to another number
+ * @method string add(string $number2, int $precision) Add number to another number
+ * @method string sub(string $number2, int $precision) Subtract to a number
+ * @method string mul(string $number2, int $precision) Multiply to a number
+ * @method string div(string $number2, int $precision) Divide to a number
+ * @method string mod(string $number2, int $precision) Modulus of a number
+ * @method string pow(int $exp, int $precision) Get the power of a number
+ * @method string div_single(string $number2, int $precision) Divide the number by a single digit number
+ * @method string comp(string $number2) Compare the number to another number
  */
 class Number
 {
