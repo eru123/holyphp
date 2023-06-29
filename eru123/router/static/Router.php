@@ -5,8 +5,6 @@ namespace eru123\router\static;
 use eru123\router\Router as DynamicRouter;
 
 /**
- * Router
- * 
  * @method static DynamicRouter fallback($callback) Set the fallback callback
  * @method static DynamicRouter error($callback) Set the error callback
  * @method static DynamicRouter response($callback) Set the response callback
@@ -21,6 +19,7 @@ use eru123\router\Router as DynamicRouter;
  * @method static DynamicRouter head(string $path, ...$callback) Define a HEAD route
  * @method static DynamicRouter any(string $path, ...$callback) Define a route for all methods
  * @method static DynamicRouter static(string $path, string|array $dir, string|array $index = [], ...$callbacks) Define a static route
+ * @method static DynamicRouter proxy(string $url, ...$callbacks) Define a proxy route
  * @method static DynamicRouter base(?string $base) Set the base path if $base is not null or return the base path
  * @method static DynamicRouter child(DynamicRouter $router) Add a child router
  * @method static DynamicRouter parent(?DynamicRouter $router) Set the parent router if $router is not null or return the parent router
