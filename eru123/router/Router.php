@@ -7,6 +7,7 @@ use Error;
 use Throwable;
 use InvalidArgumentException;
 use eru123\fs\File;
+use eru123\http\Fetch;
 
 class Router
 {
@@ -61,7 +62,7 @@ class Router
      * Define a route
      * @param string $method HTTP method (GET, POST, PUT, DELETE, PATCH, OPTIONS, HEAD, ANY, STATIC)
      * @param string $url URL path to match
-     * @param callable [,...$callbacks] Callback functions to be called if the route is matched
+     * @param callable ...$callbacks Callback functions to be called if the route is matched
      * @return Router
      */
     public function request($method, $url, ...$callbacks): static
@@ -78,7 +79,7 @@ class Router
      * Alias of request()
      * @param string $method HTTP method (GET, POST, PUT, DELETE, PATCH, OPTIONS, HEAD, ANY, STATIC)
      * @param string $url URL path to match
-     * @param callable [,...$callbacks] Callback functions to be called if the route is matched
+     * @param callable ...$callbacks Callback functions to be called if the route is matched
      * @return Router
      */
     public function route(...$args): static
@@ -89,7 +90,7 @@ class Router
     /**
      * Define a route with GET method
      * @param string $url URL path to match
-     * @param callable [,...$callbacks] Callback functions to be called if the route is matched
+     * @param callable ...$callbacks Callback functions to be called if the route is matched
      * @return Router
      */
     public function get($url, ...$callbacks): static
@@ -100,7 +101,7 @@ class Router
     /**
      * Define a route with POST method
      * @param string $url URL path to match
-     * @param callable [,...$callbacks] Callback functions to be called if the route is matched
+     * @param callable ...$callbacks Callback functions to be called if the route is matched
      * @return Router
      */
     public function post($url, ...$callbacks): static
@@ -127,7 +128,7 @@ class Router
     /**
      * Define a route with PUT method
      * @param string $url URL path to match
-     * @param callable [,...$callbacks] Callback functions to be called if the route is matched
+     * @param callable ...$callbacks Callback functions to be called if the route is matched
      * @return Router
      */
     public function put($url, ...$callbacks): static
@@ -138,7 +139,7 @@ class Router
     /**
      * Define a route with DELETE method
      * @param string $url URL path to match
-     * @param callable [,...$callbacks] Callback functions to be called if the route is matched
+     * @param callable ...$callbacks Callback functions to be called if the route is matched
      * @return Router
      */
     public function delete($url, ...$callbacks): static
@@ -149,7 +150,7 @@ class Router
     /**
      * Define a route with PATCH method
      * @param string $url URL path to match
-     * @param callable [,...$callbacks] Callback functions to be called if the route is matched
+     * @param callable ...$callbacks Callback functions to be called if the route is matched
      * @return Router
      */
     public function patch($url, ...$callbacks): static
@@ -160,7 +161,7 @@ class Router
     /**
      * Define a route with OPTIONS method
      * @param string $url URL path to match
-     * @param callable [,...$callbacks] Callback functions to be called if the route is matched
+     * @param callable ...$callbacks Callback functions to be called if the route is matched
      * @return Router
      */
     public function options($url, ...$callbacks): static
@@ -171,7 +172,7 @@ class Router
     /**
      * Define a route with HEAD method
      * @param string $url URL path to match
-     * @param callable [,...$callbacks] Callback functions to be called if the route is matched
+     * @param callable ...$callbacks Callback functions to be called if the route is matched
      * @return Router
      */
     public function head($url, ...$callbacks): static
@@ -182,7 +183,7 @@ class Router
     /**
      * Define a route with ANY method. The route will be matched with any HTTP method.
      * @param string $url URL path to match
-     * @param callable [,...$callbacks] Callback functions to be called if the route is matched
+     * @param callable ...$callbacks Callback functions to be called if the route is matched
      * @return Router
      */
     public function any($url, ...$callbacks): static
@@ -195,7 +196,7 @@ class Router
      * @param string $url URL path to match
      * @param string|array $dir Directory or directories to serve static files from
      * @param string|array $index Index file or files to serve if the directory is requested
-     * @param callable [,...$callbacks] Callback functions to be called if the route is matched
+     * @param callable ...$callbacks Callback functions to be called if the route is matched
      * @return Router
      */
     public function static($url, string|array $dir, string|array $index = [], ...$callbacks): static
@@ -250,61 +251,22 @@ class Router
         return $this->request('STATIC', $url, ...$callbacks);
     }
 
+    /**
+     * Define a route with PROXY method. The route will be matched with any HTTP/S method.
+     * Please note that this is intended for API forwarding to bypass CORS restrictions and does not modify the response body. Use callbacks to validate the request. 
+     * @param string $url URL path to match
+     * @param callable ...$callbacks Callback functions to be called if the route is matched
+     * @return Router
+     */
     public function proxy($url, ...$callbacks): static
     {
         $callbacks[] = function (Context $context) {
-            if ($context->route['method'] !== 'PROXY' || !isset($context->route['params']['file']) || empty($context->route['params']['file'])) {
+            if ($context->route['method'] !== 'PROXY' || !$context->route['matchdir'] || empty($context->route['file'])) {
                 return null;
             }
 
-            $fp = urldecode($context->route['params']['file']);
-            if (!filter_var($fp, FILTER_VALIDATE_URL)) {
-                throw new InvalidArgumentException('Invalid proxy URL', 400);
-            }
-
-            $protocol = parse_url($fp, PHP_URL_SCHEME);
-            if (!in_array($protocol, ['http', 'https'])) {
-                throw new InvalidArgumentException('Invalid Protocol', 400);
-            }
-
-            $ch = curl_init($fp);
-            curl_setopt($ch, CURLOPT_HEADER, true);
-            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-            curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
-            curl_setopt($ch, CURLOPT_COOKIE, implode('; ', $_COOKIE));
-
-            $headers = [];
-            foreach (getallheaders() as $key => $value) {
-                if (in_array(strtolower($key), ['host', 'content-length', 'content-type'])) {
-                    continue;
-                }
-                $headers[] = $key . ': ' . $value;
-            }
-
-            // bypass p3p policy
-            $headers[] = 'P3P: CP="CAO PSA OUR"';
-
-            curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
-
-            if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-                curl_setopt($ch, CURLOPT_POST, true);
-                curl_setopt($ch, CURLOPT_POSTFIELDS, file_get_contents('php://input'));
-            }
-
-            $response = curl_exec($ch);
-            $header_size = curl_getinfo($ch, CURLINFO_HEADER_SIZE);
-            $header = substr($response, 0, $header_size);
-            $body = substr($response, $header_size);
-
-            $headers = explode("\r\n", $header);
-            foreach ($headers as $header) {
-                if (empty($header)) {
-                    continue;
-                }
-                header($header);
-            }
-
-            return $body;
+            $fp = ltrim(urldecode($context->route['file']), '/');
+            return Fetch::httpForwardedTo($fp);
         };
 
         return $this->request('PROXY', $url, ...$callbacks);
