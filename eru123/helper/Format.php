@@ -11,7 +11,7 @@ define('FORMAT_NUMBER_PRECISION', 3);
 
 class Format
 {
-    public static function number(string $int, int $flag = FORMAT_NUMBER_UNIT, int $precision = 0)
+    public static function number(string $int, int $flag = FORMAT_NUMBER_UNIT, int $precision = 0, bool $trailing_zero = false)
     {
         $bytes_units = [
             'YB' => 1208925819614629174706176,
@@ -52,26 +52,26 @@ class Format
             case FORMAT_NUMBER_BYTE:
                 foreach ($bytes_units as $unit => $value) {
                     if ($int >= $value) {
-                        return Number::div($int, $value, $precision) . $unit;
+                        return $trailing_zero ? Number::div($int, $value, $precision) . $unit : preg_replace('/\.?0+$/', '', Number::div($int, $value, $precision)) . $unit;
                     }
                 }
                 return $int;
             case FORMAT_NUMBER_BIT:
                 foreach ($bits_units as $unit => $value) {
                     if ($int >= $value) {
-                        return Number::div($int, $value, $precision) . $unit;
+                        return $trailing_zero ? Number::div($int, $value, $precision) . $unit : preg_replace('/\.?0+$/', '', Number::div($int, $value, $precision)) . $unit;
                     }
                 }
                 return $int;
             case FORMAT_NUMBER_UNIT:
                 foreach ($units as $unit => $value) {
                     if ($int >= $value) {
-                        return Number::div($int, $value, $precision) . $unit;
+                        return $trailing_zero ? Number::div($int, $value, $precision) . $unit : preg_replace('/\.?0+$/', '', Number::div($int, $value, $precision)) . $unit;
                     }
                 }
                 return $int;
             case FORMAT_NUMBER_PRECISION:
-                return Number::round($int, $precision);
+                return $trailing_zero ? Number::round($int, $precision) : preg_replace('/\.?0+$/', '', Number::round($int, $precision));
             default:
                 return $int;
         }
