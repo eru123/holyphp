@@ -24,6 +24,11 @@ class Context
      */
     protected $__data__ = [];
 
+    /**
+     * @var Response The response instance
+     */
+    protected $__response__;
+
     public function __construct(array $data = [])
     {
         $this->__data__ = $data;
@@ -31,7 +36,7 @@ class Context
 
     public function __set($name, $value)
     {
-        if (method_exists($this, $name)) {
+        if (in_array($name, ['res', 'resp', 'response']) || method_exists($this, $name)) {
             throw new Exception("Cannot override method $name");
         }
 
@@ -40,6 +45,14 @@ class Context
 
     public function __get($name)
     {
+        if (in_array($name, ['res', 'resp', 'response'])) {
+            if (!$this->__response__) {
+                $this->__response__ = new Response($this);
+            }
+
+            return $this->__response__;
+        }
+
         return $this->__data__[$name] ?? null;
     }
 
