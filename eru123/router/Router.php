@@ -27,22 +27,38 @@ class Router
 
     /**
      * Set a callback function to be called if no route is matched
-     * @param callable $callback
-     * @return Router
+     * @param callable|null $callback
+     * @return Router|callable|null
      */
-    public function fallback(callable $callback): static
+    public function fallback(callable $callback = null): static|callable|null
     {
+        if (is_null($callback)) {
+            return $this->fallback ? $this->fallback : ($this->parent ? $this->parent->fallback() : null);
+        }
         $this->fallback = $callback;
         return $this;
     }
 
     /**
+     * Check if has a fallback callback
+     * @return boolean
+     */
+    public function has_fallback(): bool
+    {
+        return !is_null($this->fallback);
+    }
+
+    /**
      * Set a callback function to be called if an error is thrown
      * @param callable $callback
-     * @return Router
+     * @return Router|callable|null
      */
-    public function error(callable $callback): static
+    public function error(callable $callback = null): static|callable|null
     {
+        if (is_null($callback)) {
+            return $this->error ? $this->error : ($this->parent ? $this->parent->error() : null);
+        }
+
         $this->error = $callback;
         return $this;
     }
@@ -50,10 +66,13 @@ class Router
     /**
      * Set a callback function to be called if a response is returned
      * @param callable $callback
-     * @return Router
+     * @return Router|callable|null
      */
-    public function response(callable $callback): static
+    public function response(callable $callback = null): static|callable|null
     {
+        if (is_null($callback)) {
+            return $this->response ? $this->response : ($this->parent ? $this->parent->response() : null);
+        }
         $this->response = $callback;
         return $this;
     }
@@ -316,6 +335,7 @@ class Router
     public function map(string $parent_base = '', array $parent_callbacks = []): array
     {
         $map = [];
+        $fallbacks = [];
         $stack = [[$this, $parent_base, $parent_callbacks]];
 
         while (!empty($stack)) {
@@ -323,9 +343,25 @@ class Router
 
             foreach ($router->routes as $route) {
                 $map[] = [
+                    'router' => $router,
                     'method' => strtoupper(trim($route['method'])),
                     'path' => $prefix . $router->base() . $route['path'],
                     'callbacks' => array_merge($callbacks, $router->bootstraps, $route['callbacks'])
+                ];
+            }
+
+            if ($router->has_fallback()) {
+                $fallback = $prefix . $router->base();
+                $fallbacks[] = [
+                    'router' => $router,
+                    'method' => 'FALLBACK',
+                    'path' => $fallback,
+                    'callbacks' => array_merge($callbacks, $router->bootstraps, [$router->fallback()]),
+                    'match' => Helper::match($fallback),
+                    'matchdir' => Helper::matchdir($fallback),
+                    'params' => Helper::params($fallback),
+                    'file' => Helper::file($fallback),
+                    'params' => array_merge(Helper::params($fallback), Helper::fallback_params($fallback))
                 ];
             }
 
@@ -333,6 +369,9 @@ class Router
                 $stack[] = [$child, $prefix . $router->base(), array_merge($callbacks, $router->bootstraps)];
             }
         }
+
+        $fallbacks = array_reverse($fallbacks);
+        $map = array_merge($map, $fallbacks);
 
         return array_map(function ($route) {
             $fallback_match = Helper::match_fallback($route['path']);
@@ -344,6 +383,20 @@ class Router
             return $route;
         }, $map);
     }
+
+    /**
+     * Create child router as a group
+     * @param string $base The base path of the child router
+     * @return Router
+     */
+    public function group(string $base = null): Router
+    {
+        $router = new Router();
+        is_null($base) || $router->base($base);
+        $this->child($router);
+        return $router;
+    }
+
 
     /**
      * Default HTML Page for handling errors, exceptions and fallbacks
@@ -374,15 +427,15 @@ class Router
 
         $map = $this->map();
 
-        $fallback_handler = !empty($this->fallback) ? $this->fallback : function () {
+        $default_fallback_handler = !empty($this->fallback) ? $this->fallback : function () {
             return self::status_page(404, '404 Not Found', 'The requested URL was not found on this server.');
         };
 
-        $error_handler = !empty($this->error) ? $this->error : function () {
+        $default_error_handler = !empty($this->error) ? $this->error : function () {
             return self::status_page(500, '500 Internal Server Error', 'The server encountered an internal error and was unable to complete your request. Either the server is overloaded or there is an error in the application.');
         };
 
-        $response_handler = !empty($this->response) ? $this->response : function ($response) {
+        $default_response_handler = !empty($this->response) ? $this->response : function ($response) {
             if (is_array($response) || is_object($response)) {
                 header('Content-Type: application/json');
                 echo json_encode($response);
@@ -393,15 +446,27 @@ class Router
             }
         };
 
-        $context = null;
+        $fallback_handler = $default_fallback_handler;
+        $error_handler = $default_error_handler;
+        $response_handler = $default_response_handler;
+
+        $context = new Context();
+        $context->route = null;
+        $context->routes = $map;
+        $context->response->set_handler($response_handler);
 
         try {
             $callback_response = null;
             foreach ($map as $route) {
+                $fallback_handler = $route['router']->fallback() ?? $default_fallback_handler;
+                $error_handler = $route['router']->error() ?? $default_error_handler;
+                $response_handler = $route['router']->response() ?? $default_response_handler;
+
                 if ($route['match'] || $route['matchdir']) {
                     $context = new Context($route);
                     $context->route = $route;
                     $context->routes = $map;
+                    $context->response->set_handler($response_handler);
                     $callbacks = $route['callbacks'];
 
                     $match_any = $route['method'] == 'ANY';
@@ -409,8 +474,9 @@ class Router
                     $match_url = ($match_any || $match_method) && $route['match'];
                     $match_dir = $route['method'] == 'STATIC' && $route['matchdir'];
                     $match_proxy = $context->route['method'] == 'PROXY' && isset($context->route['params']['file']) && !empty($context->route['params']['file']);
+                    $match_fallback = $context->route['method'] == 'FALLBACK' && $route['matchdir'];
 
-                    if ($match_url || $match_dir || $match_proxy) {
+                    if ($match_url || $match_dir || $match_proxy || $match_fallback) {
                         $callback_response = null;
                         while (!empty($callbacks) && is_null($callback_response)) {
                             $callback = array_shift($callbacks);
@@ -427,7 +493,7 @@ class Router
             }
 
             if (is_null($callback_response)) {
-                $response_handler($fallback_handler($context ?? new Context()));
+                $response_handler($fallback_handler($context));
             }
         } catch (Exception $e) {
             $response_handler($error_handler($e, $context));
