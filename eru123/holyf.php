@@ -112,3 +112,12 @@ function redirect(string $url, array $postdata = null, bool $replace = true, int
     header('location: ' . $url, $replace, $code);
     exit;
 }
+
+function out(...$msgs): void
+{
+    $stdout = fopen('php://stdout', 'w');
+    foreach ($msgs as $msg) {
+        fwrite($stdout, is_array($msg) || is_object($msg) ? print_r($msg, true) : (string) $msg);
+    }
+    fclose($stdout);
+}
