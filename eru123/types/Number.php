@@ -257,7 +257,7 @@ class Number
         }
 
         if (function_exists('bcdiv')) {
-            return bcdiv($a, $b, $precision);
+            return bcdiv(number_format($a, $precision, '.', ''), number_format($b, $precision, '.', ''), $precision);
         }
 
         list($a, $b) = static::_match_length($a, $b);
