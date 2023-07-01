@@ -19,6 +19,8 @@ define('FORMAT_TEMPLATE_RIGHT_COLON', 11);
 define('FORMAT_TEMPLATE_DOUBLE_LEFT_COLON', 12);
 define('FORMAT_TEMPLATE_DOUBLE_RIGHT_COLON', 13);
 define('FORMAT_TEMPLATE_DOUBLE_COLON', 14);
+define('FORMAT_EVAL_TEMPLATE_CURLY', 15);
+define('FORMAT_EVAL_TEMPLATE_DOLLAR', 16);
 
 class Format
 {
@@ -136,6 +138,28 @@ class Format
             } else {
                 $values[] = '';
             }
+        }
+        return str_replace($matches[0], $values, $template);
+    }
+
+    public static function eval_template(string $template, array $params = [], int $flag = FORMAT_EVAL_TEMPLATE_DOLLAR)
+    {
+        switch ($flag) {
+            case FORMAT_EVAL_TEMPLATE_CURLY:
+                $rgx = '/\{\{(.*?)\}\}/';
+                break;
+            case FORMAT_EVAL_TEMPLATE_DOLLAR:
+            default:
+                $rgx = '/\$\{\{(.*?)\}\}/';
+                break;
+        }
+
+        $matches = [];
+        preg_match_all($rgx, $template, $matches);
+        extract($params);
+        $values = [];
+        foreach ($matches[1] as $match) {
+            $values[] = eval('return ' . $match . ';');
         }
         return str_replace($matches[0], $values, $template);
     }
