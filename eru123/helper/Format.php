@@ -8,6 +8,17 @@ define('FORMAT_NUMBER_BYTE', 0);
 define('FORMAT_NUMBER_BIT', 1);
 define('FORMAT_NUMBER_UNIT', 2);
 define('FORMAT_NUMBER_PRECISION', 3);
+define('FORMAT_TEMPLATE_DOLLAR_CURLY', 4);
+define('FORMAT_TEMPLATE_DOLLAR', 5);
+define('FORMAT_TEMPLATE_CURLY', 6);
+define('FORMAT_TEMPLATE_PERCENT', 7);
+define('FORMAT_TEMPLATE_PERCENT_CURLY', 8);
+define('FORMAT_TEMPLATE_COLON', 9);
+define('FORMAT_TEMPLATE_LEFT_COLON', 10);
+define('FORMAT_TEMPLATE_RIGHT_COLON', 11);
+define('FORMAT_TEMPLATE_DOUBLE_LEFT_COLON', 12);
+define('FORMAT_TEMPLATE_DOUBLE_RIGHT_COLON', 13);
+define('FORMAT_TEMPLATE_DOUBLE_COLON', 14);
 
 class Format
 {
@@ -75,5 +86,57 @@ class Format
             default:
                 return $int;
         }
+    }
+
+    public static function template(string $template, array $params = [], int $flag = FORMAT_TEMPLATE_DOLLAR_CURLY)
+    {
+        switch ($flag) {
+            case FORMAT_TEMPLATE_DOLLAR:
+                $rgx = '/\$(\s+)?([a-zA-Z]([a-zA-Z0-9_]+)?)(\s+)?/';
+                break;
+            case FORMAT_TEMPLATE_CURLY:
+                $rgx = '/\{(\s+)?([a-zA-Z]([a-zA-Z0-9_]+)?)(\s+)?\}/';
+                break;
+            case FORMAT_TEMPLATE_PERCENT:
+                $rgx = '/%(\s+)?([a-zA-Z]([a-zA-Z0-9_]+)?)(\s+)?%/';
+                break;
+            case FORMAT_TEMPLATE_PERCENT_CURLY:
+                $rgx = '/%\{(\s+)?([a-zA-Z]([a-zA-Z0-9_]+)?)(\s+)?\}%/';
+                break;
+            case FORMAT_TEMPLATE_COLON:
+                $rgx = '/:(\s+)?([a-zA-Z]([a-zA-Z0-9_]+)?)(\s+)?:/';
+                break;
+            case FORMAT_TEMPLATE_LEFT_COLON:
+                $rgx = '/:(\s+)?([a-zA-Z]([a-zA-Z0-9_]+)?)(\s+)?/';
+                break;
+            case FORMAT_TEMPLATE_RIGHT_COLON:
+                $rgx = '/(\s+)?([a-zA-Z]([a-zA-Z0-9_]+)?)(\s+)?:/';
+                break;
+            case FORMAT_TEMPLATE_DOUBLE_LEFT_COLON:
+                $rgx = '/::(\s+)?([a-zA-Z]([a-zA-Z0-9_]+)?)(\s+)?/';
+                break;
+            case FORMAT_TEMPLATE_DOUBLE_RIGHT_COLON:
+                $rgx = '/(\s+)?([a-zA-Z]([a-zA-Z0-9_]+)?)(\s+)?::/';
+                break;
+            case FORMAT_TEMPLATE_DOUBLE_COLON:
+                $rgx = '/::(\s+)?([a-zA-Z]([a-zA-Z0-9_]+)?)(\s+)?::/';
+                break;
+            case FORMAT_TEMPLATE_DOLLAR_CURLY:
+            default:
+                $rgx = '/\$\{(\s+)?([a-zA-Z]([a-zA-Z0-9_]+)?)(\s+)?\}/';
+        }
+
+        $matches = [];
+        preg_match_all($rgx, $template, $matches);
+        $keys = $matches[2];
+        $values = [];
+        foreach ($keys as $key) {
+            if (isset($params[$key])) {
+                $values[] = $params[$key];
+            } else {
+                $values[] = '';
+            }
+        }
+        return str_replace($matches[0], $values, $template);
     }
 }
