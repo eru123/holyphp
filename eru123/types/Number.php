@@ -9,6 +9,7 @@ use Exception;
 use InvalidArgumentException;
 
 define('TYPES_NUMBER_PRECISION', 14);
+define('TYPES_NUMBER_NOPRECISION', -1);
 define('TYPES_NUMBER_DECIMAL', '/^([-+])?([0-9]+)((\.)([0-9]+))?$/');
 define('TYPES_NUMBER_SCIENTIFIC', '/^([-+])?([0-9]+)((\.)([0-9]+))?([eE]([-+])?([0-9]+))?$/');
 
@@ -45,9 +46,9 @@ class Number
 {
     protected $number;
 
-    public function __construct(string $number)
+    public function __construct(string $number, int $precision = TYPES_NUMBER_PRECISION)
     {
-        $this->number = static::_parse($number);
+        $this->number = static::_parse($number, $precision);
     }
 
     public function __toString(): string
@@ -80,13 +81,15 @@ class Number
 
     public static function _isPrime(string $number): bool
     {
+        $number = static::_parse($number, 0);
+
         if ($number == 1 || empty($number)) {
             return false;
         }
 
-        if (function_exists('gmp_prob_prime')) {
-            return gmp_prob_prime($number) == 2;
-        }
+        // if (function_exists('gmp_prob_prime')) {
+        //     return gmp_prob_prime($number) == 2;
+        // }
 
         $n = (int) $number;
         if ($n <= 3) {
@@ -108,6 +111,10 @@ class Number
     {
         if (!preg_match(TYPES_NUMBER_DECIMAL, $number, $matches)) {
             return static::_parse($number, $precision);
+        }
+
+        if ($precision === TYPES_NUMBER_NOPRECISION) {
+            $precision = $matches[5] ? strlen($matches[5]) : 0;
         }
 
         $sign = $matches[1] ?? '';
@@ -215,6 +222,8 @@ class Number
 
     public static function _sub(string $a, string $b, int $precision = TYPES_NUMBER_PRECISION): string
     {
+        $a = static::_parse($a, $precision);
+        $b = static::_parse($b, $precision);
         // if (function_exists('gmp_sub')) {
         //     return static::_round(gmp_strval(gmp_sub($a, $b)), $precision);
         // }
