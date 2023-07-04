@@ -407,9 +407,15 @@ class SMTP implements OutboundInterface
             $this->debug('== Checking connection');
             $this->read($socket);
 
-            $this->debug('== Connected, sending HELO');
+            $this->debug('== Connected, sending EHLO');
             $this->write($socket, 'EHLO ' . $this->config['host']);
-            $this->read($socket);
+            $ehlo = $this->read($socket);
+
+            if (strpos($ehlo, '250') !== 0) {
+                $this->debug('== EHLO not supported, sending HELO');
+                $this->write($socket, 'HELO ' . $this->config['host']);
+                $this->read($socket);
+            }
 
             if ($this->config['secure'] == 'tls') {
                 $this->debug('== Starting TLS');
@@ -419,10 +425,6 @@ class SMTP implements OutboundInterface
                 if (!stream_socket_enable_crypto($socket, true, STREAM_CRYPTO_METHOD_TLS_CLIENT)) {
                     throw new Exception('Unable to start TLS');
                 }
-
-                $this->debug('== Sending HELO after TLS');
-                $this->write($socket, 'EHLO ' . $this->config['host']);
-                $this->read($socket);
             }
 
             if ($this->config['auth']) {
