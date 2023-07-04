@@ -45,6 +45,8 @@ define('TYPES_NUMBER_SCIENTIFIC', '/^([-+])?([0-9]+)((\.)([0-9]+))?([eE]([-+])?(
 class Number
 {
     protected $number;
+    static $use_gmp = true;
+    static $use_bc = true;
 
     public function __construct(string $number, int $precision = TYPES_NUMBER_PRECISION)
     {
@@ -79,6 +81,16 @@ class Number
         throw new BadMethodCallException('Call to undefined method ' . self::class . '::' . $name . '()');
     }
 
+    public static function _gmp(bool $use_gmp = true): void
+    {
+        static::$use_gmp = $use_gmp;
+    }
+
+    public static function _bc(bool $use_bc = true): void
+    {
+        static::$use_bc = $use_bc;
+    }
+
     public static function _isPrime(string $number): bool
     {
         $number = static::_parse($number, 0);
@@ -87,9 +99,9 @@ class Number
             return false;
         }
 
-        // if (function_exists('gmp_prob_prime')) {
-        //     return gmp_prob_prime($number) == 2;
-        // }
+        if (static::$use_gmp && function_exists('gmp_prob_prime')) {
+            return gmp_prob_prime($number) == 2;
+        }
 
         $n = (int) $number;
         if ($n <= 3) {
@@ -107,14 +119,14 @@ class Number
         return true;
     }
 
-    public static function _round(string $number, int $precision = TYPES_NUMBER_PRECISION): string
+    public static function _round(string $number, int $precision = TYPES_NUMBER_NOPRECISION): string
     {
         if (!preg_match(TYPES_NUMBER_DECIMAL, $number, $matches)) {
             return static::_parse($number, $precision);
         }
 
         if ($precision === TYPES_NUMBER_NOPRECISION) {
-            $precision = $matches[5] ? strlen($matches[5]) : 0;
+            $precision = !empty($matches[5]) ? strlen($matches[5]) : 0;
         }
 
         $sign = $matches[1] ?? '';
@@ -125,6 +137,25 @@ class Number
         $dec = substr($dec, 0, $precision);
 
         return $precision >= 1 ? $sign . $int . '.' . $dec : $sign . $int;
+    }
+
+    public static function _floor(string $number): string
+    {
+        return static::_round($number, 0);
+    }
+
+    public static function _ceil(string $number): string
+    {
+        $number = static::_parse($number, TYPES_NUMBER_NOPRECISION);
+        if (!preg_match(TYPES_NUMBER_DECIMAL, $number, $matches)) {
+            return $number;
+        }
+
+        if (!empty(trim($matches[5] ?? '', '0'))) {
+            return static::_add($matches[1] . $matches[2], '1', 0);
+        }
+
+        return static::_round($number, 0);
     }
 
     public static function _match_length(string $a, string $b): array
@@ -157,18 +188,18 @@ class Number
         return [$a, $b, $ss, $ms];
     }
 
-    public static function _add(string $a, string $b, int $precision = TYPES_NUMBER_PRECISION): string
+    public static function _add(string $a, string $b, int $precision = TYPES_NUMBER_NOPRECISION): string
     {
         $a = static::_parse($a, $precision);
         $b = static::_parse($b, $precision);
 
-        // if (function_exists('gmp_add')) {
-        //     return static::_round(gmp_strval(gmp_add($a, $b)), $precision);
-        // }
+        if (static::$use_gmp && function_exists('gmp_add')) {
+            return static::_round(gmp_strval(gmp_add($a, $b)), $precision);
+        }
 
-        // if (function_exists('bcadd')) {
-        //     return bcadd($a, $b, $precision);
-        // }
+        if (static::$use_bc && static::$use_bc && function_exists('bcadd')) {
+            return bcadd($a, $b, $precision);
+        }
 
         list($a, $b, $ss, $ms) = static::_match_length($a, $b);
         if ($ss) {
@@ -188,7 +219,7 @@ class Number
                 }
                 $result = $sum . $result;
             }
-            
+
             if ($carry) {
                 $result = $carry . $result;
             }
@@ -220,65 +251,37 @@ class Number
         return $ms . $result;
     }
 
-    public static function _sub(string $a, string $b, int $precision = TYPES_NUMBER_PRECISION): string
+    public static function _sub(string $a, string $b, int $precision = TYPES_NUMBER_NOPRECISION): string
     {
         $a = static::_parse($a, $precision);
         $b = static::_parse($b, $precision);
-        // if (function_exists('gmp_sub')) {
-        //     return static::_round(gmp_strval(gmp_sub($a, $b)), $precision);
-        // }
 
-        // if (function_exists('bcsub')) {
-        //     return bcsub($a, $b, $precision);
-        // }
+        if (static::$use_gmp && function_exists('gmp_sub')) {
+            return static::_round(gmp_strval(gmp_sub($a, $b)), $precision);
+        }
 
-        $s = $b[0] == '-' ? '' : '-';
-        $b = $s . substr($b, 1);
+        if (static::$use_bc && function_exists('bcsub')) {
+            return bcsub($a, $b, $precision);
+        }
+
+        $s = strlen($b) > 0 && $b[0] == '-' ? '' : '-';
+        $b = strlen($b) > 0 && in_array($b[0], ['-', '+']) ? $s . substr($b, 1) : $s . $b;
         return static::_add($a, $b, $precision);
     }
 
-    public static function _mul(string $a, string $b, int $precision = TYPES_NUMBER_PRECISION): string
+    public static function _mul(string $a, string $b, int $precision = TYPES_NUMBER_NOPRECISION): string
     {
-        if (function_exists('gmp_mul')) {
+        $a = static::_parse($a, $precision);
+        $b = static::_parse($b, $precision);
+        if (static::$use_gmp && function_exists('gmp_mul')) {
             return static::_round(gmp_strval(gmp_mul($a, $b)), $precision);
         }
 
-        if (function_exists('bcmul')) {
+        if (static::$use_bc && function_exists('bcmul')) {
             return bcmul($a, $b, $precision);
         }
 
-        list($a, $b) = static::_match_length($a, $b);
-
-        $result = '0';
-        for ($i = strlen($b) - 1; $i >= 0; $i--) {
-            if ($b[$i] == '.') {
-                continue;
-            }
-
-            $carry = 0;
-            $temp = '';
-            for ($j = strlen($a) - 1; $j >= 0; $j--) {
-                if ($a[$j] == '.') {
-                    continue;
-                }
-
-                $sum = $a[$j] * $b[$i] + $carry;
-                $carry = 0;
-                if ($sum > 9) {
-                    $carry = (int) ($sum / 10);
-                    $sum -= $carry * 10;
-                }
-                $temp = $sum . $temp;
-            }
-
-            if ($carry) {
-                $temp = $carry . $temp;
-            }
-
-            $result = static::_add($result, $temp);
-        }
-
-        return static::_round($result, $precision);
+        throw new Exception('Not implemented. Please use bc or gmp instead.');
     }
 
     public static function _div(string $a, string $b, int $precision = TYPES_NUMBER_PRECISION): string
@@ -290,149 +293,167 @@ class Number
             return '0';
         }
 
-        // if (function_exists('gmp_div')) {
-        //     return static::_round(gmp_strval(gmp_div($a, $b)), $precision);
-        // }
-
-        // if (function_exists('bcdiv')) {
-        //     return bcdiv($a, $b, $precision);
-        // }
-
-        list($a, $b) = static::_match_length($a, $b);
-
-        $result = '0';
-        $temp = '';
-        $a = ltrim($a, '0');
-        for ($i = 0; $i < strlen($a); $i++) {
-            $temp .= $a[$i];
-            if (static::_comp($temp, $b) >= 0) {
-                $result .= floor(static::_div_single($temp, $b));
-                $temp = static::_sub($temp, static::_mul($b, floor(static::_div_single($temp, $b))));
-            } else {
-                $result .= '0';
-            }
+        if (static::$use_gmp && function_exists('gmp_div')) {
+            return static::_round(gmp_strval(gmp_div($a, $b)), $precision);
         }
 
-        return static::_round($result, $precision);
+        if (static::$use_bc && function_exists('bcdiv')) {
+            return bcdiv($a, $b, $precision);
+        }
+
+        throw new Exception('Not implemented. Please use bc or gmp instead.');
     }
 
     public static function _div_single(string $a, string $b): string
     {
-        if ($a == '0' || $b == '0') {
-            return '0';
-        }
-
-        if (function_exists('gmp_div')) {
-            return gmp_strval(gmp_div($a, $b));
-        }
-
-        if (function_exists('bcdiv')) {
-            return bcdiv($a, $b);
-        }
-
-        $a = ltrim($a, '0');
-        $b = ltrim($b, '0');
-
-        $result = '0';
-        $temp = '';
-        for ($i = 0; $i < strlen($a); $i++) {
-            $temp .= $a[$i];
-            if (static::_comp($temp, $b) >= 0) {
-                $result++;
-                $temp = static::_sub($temp, $b);
-            }
-        }
-
-        return $result;
+        throw new Exception('Not implemented. Please use bc or gmp instead.');
     }
 
     public static function _mod(string $a, string $b, int $precision = TYPES_NUMBER_PRECISION): string
     {
-        if (function_exists('gmp_mod')) {
+        if (static::$use_gmp && function_exists('gmp_mod')) {
             return static::_round(gmp_strval(gmp_mod($a, $b)), $precision);
         }
 
-        if (function_exists('bcmod')) {
+        if (static::$use_bc && function_exists('bcmod')) {
             return bcmod($a, $b, $precision);
         }
 
-        list($a, $b) = static::_match_length($a, $b);
-
-        $a = ltrim($a, '0');
-        $b = ltrim($b, '0');
-
-        $temp = '';
-        for ($i = 0; $i < strlen($a); $i++) {
-            $temp .= $a[$i];
-            if (static::_comp($temp, $b) >= 0) {
-                $temp = static::_sub($temp, $b);
-            }
-        }
-
-        return static::_round($temp, $precision);
+        throw new Exception('Not implemented. Please use bc or gmp instead.');
     }
 
     public static function _comp(string $a, string $b): int
     {
-        if (function_exists('gmp_cmp')) {
+        if (!preg_match(TYPES_NUMBER_DECIMAL, $a, $am) || !preg_match(TYPES_NUMBER_DECIMAL, $b, $bm)) {
+            throw new InvalidArgumentException("Invalid number format for '$a' or '$b'");
+        }
+
+        if (static::$use_gmp && function_exists('gmp_cmp')) {
             return gmp_cmp($a, $b);
         }
 
-        if (function_exists('bccomp')) {
+        if (static::$use_bc && function_exists('bccomp')) {
             return bccomp($a, $b);
         }
 
-        list($a, $b) = static::_match_length($a, $b);
+        $as = isset($am[1]) && !empty($am[1]) && $am[1] == '-' ? '-' : '+';
+        $bs = isset($bm[1]) && !empty($bm[1]) && $bm[1] == '-' ? '-' : '+';
+        $ai = isset($am[2]) && !empty($am[2]) ? $am[2] : '0';
+        $ai = ltrim($ai, '0');
+        $bi = isset($bm[2]) && !empty($bm[2]) ? $bm[2] : '0';
+        $bi = ltrim($bi, '0');
+        $af = isset($am[5]) && !empty($am[5]) ? $am[5] : '';
+        $af = rtrim($af, '0');
+        $bf = isset($bm[5]) && !empty($bm[5]) ? $bm[5] : '';
+        $bf = rtrim($bf, '0');
 
-        $a = ltrim($a, '0');
-        $b = ltrim($b, '0');
+        $ac = $as . $ai . '.' . ($af ? $af : '0');
+        $bc = $bs . $bi . '.' . ($bf ? $bf : '0');
 
-        if (strlen($a) > strlen($b)) {
-            return 1;
-        } elseif (strlen($a) < strlen($b)) {
-            return -1;
-        } else {
-            for ($i = 0; $i < strlen($a); $i++) {
-                if ($a[$i] > $b[$i]) {
+        if ($ac == $bc) {
+            return 0;
+        }
+        if ($as != $bs) {
+            return $as == '-' ? -1 : 1;
+        }
+
+        if ($as == '+') {
+            if (strlen($ai) > strlen($bi)) {
+                return 1;
+            } elseif (strlen($ai) < strlen($bi)) {
+                return -1;
+            } else if ($ai == $bi) {
+                if (strlen($af) > strlen($bf)) {
                     return 1;
-                } elseif ($a[$i] < $b[$i]) {
+                } elseif (strlen($af) < strlen($bf)) {
                     return -1;
+                } else if ($af == $bf) {
+                    return 0;
+                }
+
+                for ($i = 0; $i < strlen($af); $i++) {
+                    if ($af[$i] > $bf[$i]) {
+                        return 1;
+                    } elseif ($af[$i] < $bf[$i]) {
+                        return -1;
+                    }
+                }
+            } else {
+                for ($i = 0; $i < strlen($ai); $i++) {
+                    if ($ai[$i] > $bi[$i]) {
+                        return 1;
+                    } elseif ($ai[$i] < $bi[$i]) {
+                        return -1;
+                    }
                 }
             }
         }
 
-        return 0;
-    }
+        if ($as == '-') {
+            if (strlen($ai) > strlen($bi)) {
+                return -1;
+            } elseif (strlen($ai) < strlen($bi)) {
+                return 1;
+            } else if ($ai == $bi) {
+                if (strlen($af) > strlen($bf)) {
+                    return -1;
+                } elseif (strlen($af) < strlen($bf)) {
+                    return 1;
+                } else if ($af == $bf) {
+                    return 0;
+                }
 
-    public static function _pow(string $a, string $b, int $precision = TYPES_NUMBER_PRECISION): string
-    {
-        if (function_exists('gmp_pow')) {
-            return static::_round(gmp_strval(gmp_pow($a, $b)), $precision);
+                for ($i = 0; $i < strlen($af); $i++) {
+                    if ($af[$i] > $bf[$i]) {
+                        return -1;
+                    } elseif ($af[$i] < $bf[$i]) {
+                        return 1;
+                    }
+                }
+            } else {
+                for ($i = 0; $i < strlen($ai); $i++) {
+                    if ($ai[$i] > $bi[$i]) {
+                        return -1;
+                    } elseif ($ai[$i] < $bi[$i]) {
+                        return 1;
+                    }
+                }
+            }
         }
 
-        if (function_exists('bcpow') && $b <= PHP_INT_MAX) {
-            return bcpow($a, $b, $precision);
+        throw new Exception("Invalid comparison for '$a' and '$b'");
+    }
+
+    public static function _pow(string $a, string $b): string
+    {
+        if (static::$use_gmp && function_exists('gmp_pow')) {
+            return static::_round(gmp_strval(gmp_pow($a, (int) $b)), TYPES_NUMBER_NOPRECISION);
+        }
+
+        if (static::$use_bc && function_exists('bcpow')) {
+            return static::_round(bcpow($a, $b), TYPES_NUMBER_NOPRECISION);
         }
 
         $result = '1';
-        $b = static::_round($b, 0);
-
+        $b = static::_parse($b);
         while (static::_comp($b, '0') > 0) {
             $result = static::_mul($result, $a);
             $b = static::_sub($b, '1');
         }
 
-        return static::_round($result, $precision);
+        return static::_round($result, TYPES_NUMBER_NOPRECISION);
     }
 
-    public static function _parse(string $number, int $precision = TYPES_NUMBER_PRECISION): string
+    public static function _parse(string $number, int $precision = TYPES_NUMBER_NOPRECISION): string
     {
-        if (preg_match(TYPES_NUMBER_DECIMAL, $number)) {
+        if (preg_match(TYPES_NUMBER_DECIMAL, $number, $matches)) {
             return static::_round($number, $precision);
         }
 
         if (preg_match(TYPES_NUMBER_SCIENTIFIC, $number, $matches)) {
-            return static::_mul($matches[1] . $matches[2] . $matches[3], static::_pow('10', $matches[8], $precision));
+            $precision = 0;
+            out($matches, PHP_EOL);
+            return static::_mul($matches[1] . $matches[2] . $matches[3], static::_pow('10', $matches[8]), $precision);
         }
 
         throw new InvalidArgumentException("Invalid number format for '$number'");
