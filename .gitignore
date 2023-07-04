@@ -7,5 +7,6 @@ composer.phar
 /public
 index.php
 /*test.php
+/dev
 *.env
 .env
