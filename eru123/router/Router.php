@@ -478,7 +478,7 @@ class Router
 
                     if ($match_url || $match_dir || $match_proxy || $match_fallback) {
                         $callback_response = null;
-                        while (!empty($callbacks) && is_null($callback_response)) {
+                        while (!empty($callbacks) && is_null($callback_response) && $callback_response !== false) {
                             $callback = array_shift($callbacks);
                             if (is_callable($callback)) {
                                 $callback_response = call_user_func_array($callback, [&$context]);
@@ -492,7 +492,7 @@ class Router
                 }
             }
 
-            if (is_null($callback_response)) {
+            if (is_null($callback_response) || $callback_response === false) {
                 $response_handler($fallback_handler($context));
             }
         } catch (Exception $e) {
