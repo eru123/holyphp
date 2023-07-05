@@ -1,8 +1,5 @@
-# Ignore Composer files.
 composer.phar
 /vendor/
-
-# Test files.
 /app
 /public
 index.php
@@ -10,3 +7,4 @@ index.php
 /dev
 *.env
 .env
+/.vscode/sftp.json
