@@ -40,6 +40,52 @@ class Router
     }
 
     /**
+     * Convert to a recognizable callback
+     * @param callable|string|array|Closure $callback
+     * @return callable
+     */
+    public function make_callable($cb)
+    {
+        if (is_callable($cb)) {
+            return $cb;
+        }
+
+        if (is_string($cb)) {
+            $rgx = '/^([a-zA-Z0-9_\\\\]+)(::|@)([a-zA-Z0-9_]+)$/';
+            if (preg_match($rgx, $cb, $matches)) {
+                $classname = $matches[1];
+                $method = $matches[3];
+                if (class_exists($classname)) {
+                    $obj = new $classname();
+                    if (method_exists($obj, $method)) {
+                        return [$obj, $method];
+                    }
+                }
+            }
+        }
+
+        if (is_array($cb) && count($cb) == 2) {
+            if (is_object($cb[0]) && is_string($cb[1])) {
+                return $cb;
+            } else if (is_string($cb[0]) && is_string($cb[1])) {
+                $classname = $cb[0];
+                $method = $cb[1];
+                if (class_exists($classname)) {
+                    $obj = new $classname();
+                    if (method_exists($obj, $method)) {
+                        return [$obj, $method];
+                    } else if (method_exists($classname, $method)) {
+                        return $cb;
+                    }
+                }
+            }
+        
+        }
+
+        throw new Exception('invalid callback');
+    }
+
+    /**
      * Check if has a fallback callback
      * @return boolean
      */
@@ -431,7 +477,8 @@ class Router
             return self::status_page(404, '404 Not Found', 'The requested URL was not found on this server.');
         };
 
-        $default_error_handler = !empty($this->error) ? $this->error : function () {
+        $default_error_handler = !empty($this->error) ? $this->error : function (Throwable $e) {
+            out($e->getMessage());
             return self::status_page(500, '500 Internal Server Error', 'The server encountered an internal error and was unable to complete your request. Either the server is overloaded or there is an error in the application.');
         };
 
@@ -479,7 +526,7 @@ class Router
                     if ($match_url || $match_dir || $match_proxy || $match_fallback) {
                         $callback_response = null;
                         while (!empty($callbacks) && is_null($callback_response) && $callback_response !== false) {
-                            $callback = array_shift($callbacks);
+                            $callback = $this->make_callable(array_shift($callbacks));
                             if (is_callable($callback)) {
                                 $callback_response = call_user_func_array($callback, [&$context]);
                             }
