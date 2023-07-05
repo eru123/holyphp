@@ -1019,19 +1019,17 @@ class File
             'zip' => 'application/zip',
             'zir' => 'application/vnd.zul',
             'zirz' => 'application/vnd.zul',
-            'zmm' => 'application/vnd.handheld-entertainment+xml'
-        ];
+            'zmm' => 'application/vnd.handheld-entertainment+xml',
 
-        $non_standard_mimes  = [
+            // NON STANDARD MIMES
             'php' => 'application/x-php',
         ];
-
-        $mimes = array_merge($mimes, $non_standard_mimes);
 
         if (isset($mimes[strtolower($this->ext)])) {
             $this->mime = $mimes[strtolower($this->ext)];
         }
 
+        unset($mimes);
         $this->size = filesize($this->path);
     }
 
