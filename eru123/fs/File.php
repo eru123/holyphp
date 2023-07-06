@@ -1056,7 +1056,8 @@ class File
         $size = $this->size;
         $offset = 0;
 
-        if (!headers_sent() && ob_get_level() === 0) {
+        // if (!headers_sent() && ob_get_level() === 0) {
+        if (!headers_sent()) {
             header('Content-Type: ' . $this->mime);
             header('Content-Length: ' . $size);
             header('Accept-Ranges: bytes');
