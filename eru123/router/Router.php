@@ -79,7 +79,6 @@ class Router
                     }
                 }
             }
-        
         }
 
         throw new Exception('invalid callback');
@@ -274,7 +273,9 @@ class Router
             $index = [$index];
         }
 
-        $callbacks[] = function (Context $context) use ($dir, $index) {
+        $precallback = function (Context $context) use ($dir, $index) {
+            $context->file_path = null;
+
             if (!isset($context->route['file']) || empty($context->route['file'])) {
                 return null;
             }
@@ -309,9 +310,19 @@ class Router
                     continue;
                 }
 
-                return (new File($f))->stream();
+                $context->file_path = $f;
+                return null;
             }
         };
+
+        $postcallback = function (Context $context) {
+            if ($context->file_path) {
+                return (new File($context->file_path))->stream();
+            }
+        };
+
+        array_unshift($callbacks, $precallback);
+        array_push($callbacks, $postcallback);
 
         return $this->request('STATIC', $url, ...$callbacks);
     }
