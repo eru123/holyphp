@@ -398,13 +398,27 @@ class Router
         while (!empty($stack)) {
             [$router, $prefix, $callbacks] = array_pop($stack);
 
+            $static = [];
             foreach ($router->routes as $route) {
+                if ($route['method'] == 'STATIC') {
+                    $static[] = [
+                        'router' => $router,
+                        'method' => strtoupper(trim($route['method'])),
+                        'path' => $prefix . $router->base() . $route['path'],
+                        'callbacks' => array_merge($callbacks, $router->bootstraps, $route['callbacks'])
+                    ];
+                    continue;
+                }
                 $map[] = [
                     'router' => $router,
                     'method' => strtoupper(trim($route['method'])),
                     'path' => $prefix . $router->base() . $route['path'],
                     'callbacks' => array_merge($callbacks, $router->bootstraps, $route['callbacks'])
                 ];
+            }
+
+            foreach ($static as $route) {
+                $map[] = $route;
             }
 
             if ($router->has_fallback()) {
