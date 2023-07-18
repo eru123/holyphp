@@ -30,7 +30,7 @@ class Router
      * @param callable|null $callback
      * @return Router|callable|null
      */
-    public function fallback(callable $callback = null): static|callable|null
+    public function fallback($callback = null): static|callable|null
     {
         if (is_null($callback)) {
             return $this->fallback ? $this->fallback : ($this->parent ? $this->parent->fallback() : null);
@@ -428,11 +428,6 @@ class Router
                     'method' => 'FALLBACK',
                     'path' => $fallback,
                     'callbacks' => array_merge($callbacks, $router->bootstraps, [$router->fallback()]),
-                    'match' => Helper::match($fallback),
-                    'matchdir' => Helper::matchdir($fallback),
-                    'params' => Helper::params($fallback),
-                    'file' => Helper::file($fallback),
-                    'params' => array_merge(Helper::params($fallback), Helper::fallback_params($fallback))
                 ];
             }
 
@@ -445,12 +440,13 @@ class Router
         $map = array_merge($map, $fallbacks);
 
         return array_map(function ($route) {
-            $fallback_match = Helper::match_fallback($route['path']);
-            $route['match'] = Helper::match($route['path']) || $fallback_match;
+            $route['fallback'] = Helper::match_fallback($route['path']);
+            $route['match'] = Helper::match($route['path']);
             $route['matchdir'] = Helper::matchdir($route['path']);
             $route['params'] = Helper::params($route['path']);
             $route['file'] = Helper::file($route['path']);
-            $route['params'] = array_merge($route['params'], Helper::fallback_params($route['path']));
+            $route['params'] = array_merge($route['params']);
+            $route['fallback_params'] = Helper::fallback_params($route['path']);
             return $route;
         }, $map);
     }
@@ -503,7 +499,6 @@ class Router
         };
 
         $default_error_handler = !empty($this->error) ? $this->error : function (Throwable $e) {
-            out($e->getMessage());
             return self::status_page(500, '500 Internal Server Error', 'The server encountered an internal error and was unable to complete your request. Either the server is overloaded or there is an error in the application.');
         };
 
@@ -546,7 +541,7 @@ class Router
                     $match_url = ($match_any || $match_method) && $route['match'];
                     $match_dir = $route['method'] == 'STATIC' && $route['matchdir'];
                     $match_proxy = $context->route['method'] == 'PROXY' && isset($context->route['params']['file']) && !empty($context->route['params']['file']);
-                    $match_fallback = $context->route['method'] == 'FALLBACK' && $route['matchdir'];
+                    $match_fallback = $context->route['method'] == 'FALLBACK' && $route['fallback'];
 
                     if ($match_url || $match_dir || $match_proxy || $match_fallback) {
                         $callback_response = null;
