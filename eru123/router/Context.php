@@ -108,4 +108,18 @@ class Context
     {
         return (object) $this->__data__;
     }
+
+    public function body()
+    {
+        return file_get_contents('php://input');
+    }
+
+    public function json()
+    {
+        if (empty($this->body())) {
+            return [];
+        }
+
+        return json_decode($this->body(), true) ?? [];
+    }
 }
