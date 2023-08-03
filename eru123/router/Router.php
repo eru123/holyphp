@@ -27,10 +27,10 @@ class Router
 
     /**
      * Set a callback function to be called if no route is matched
-     * @param callable|null $callback
+     * @param callable|null|string $callback
      * @return Router|callable|null
      */
-    public function fallback($callback = null): static|callable|null
+    public function fallback($callback = null): static|callable|null|string
     {
         if (is_null($callback)) {
             return $this->fallback ? $this->fallback : ($this->parent ? $this->parent->fallback() : null);
@@ -95,10 +95,10 @@ class Router
 
     /**
      * Set a callback function to be called if an error is thrown
-     * @param callable $callback
+     * @param callable|null|string $callback
      * @return Router|callable|null
      */
-    public function error(callable $callback = null): static|callable|null
+    public function error(callable $callback = null): static|callable|null|string
     {
         if (is_null($callback)) {
             return $this->error ? $this->error : ($this->parent ? $this->parent->error() : null);
@@ -110,10 +110,10 @@ class Router
 
     /**
      * Set a callback function to be called if a response is returned
-     * @param callable $callback
+     * @param callable|null|string $callback
      * @return Router|callable|null
      */
-    public function response(callable $callback = null): static|callable|null
+    public function response(callable $callback = null): static|callable|null|string
     {
         if (is_null($callback)) {
             return $this->response ? $this->response : ($this->parent ? $this->parent->response() : null);
@@ -524,9 +524,9 @@ class Router
         try {
             $callback_response = null;
             foreach ($map as $route) {
-                $fallback_handler = $route['router']->fallback() ?? $default_fallback_handler;
-                $error_handler = $route['router']->error() ?? $default_error_handler;
-                $response_handler = $route['router']->response() ?? $default_response_handler;
+                $fallback_handler = $this->make_callable($route['router']->fallback() ?? $default_fallback_handler);
+                $error_handler = $this->make_callable($route['router']->error() ?? $default_error_handler);
+                $response_handler = $this->make_callable($route['router']->response() ?? $default_response_handler);
 
                 if ($route['match'] || $route['matchdir']) {
                     $context = new Context($route);
