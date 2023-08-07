@@ -266,8 +266,8 @@ class Vite
     {
         $prod = !in_array(static::$str_tpl_name, ['dev', 'react']);
         $router->bootstrap(function (Context $ctx) use ($data, $minify) {
-            $ctx->vite = function () use ($data, $minify) {
-                return static::render($data, $minify);
+            $ctx->vite = function (array $data2 = []) use ($data, $minify) {
+                return static::render($data2 + $data, $minify);
             };
         });
 
