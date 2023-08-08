@@ -7,3 +7,4 @@ Created by the holy saints to overcome trials, hardship, and sorrow, saving you 
  - [Configuration Files](./docs/configuration.md)
  - [Environment Variables](./docs/envvars.md)
  - [Routing](./docs/routing.md)
+ - [Vite Support](./docs/vite.md)
